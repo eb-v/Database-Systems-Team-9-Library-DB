@@ -132,7 +132,7 @@ CREATE TABLE IF NOT EXISTS FeePayment (
   Payment_Date  DATE NOT NULL,
   method        SMALLINT,
   Person_ID     INT NOT NULL,
-  Fine_ID       INT UNIQU NOT NULL,
+  Fine_ID       INT UNIQUE NOT NULL,
   FOREIGN KEY (Person_ID) REFERENCES Person(Person_ID),
   FOREIGN KEY (Fine_ID) REFERENCES FeeOwed(Fine_ID)
 );
