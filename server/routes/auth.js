@@ -74,15 +74,27 @@ async function login(req, res) {
                 return res.end(JSON.stringify({ error: 'Invalid credentials' }));
             }
 
-            // create a JWT containing the person's id and role. role 1 = staff, role 2 = user/patron. the token expires in 8 hours
+            // if the person is staff, get their Staff_permissions to determine if they are admin or regular staff. staff_permissions 1 = regular staff, 2 = admin
+            let staff_permissions = null;
+            if (person.role === 1) {
+                const [staffRows] = await db.query(
+                    `SELECT Staff_permissions FROM Staff WHERE Person_ID = ?`,
+                    [person.Person_ID]
+                );
+                if (staffRows.length > 0) {
+                    staff_permissions = staffRows[0].Staff_permissions;
+                }
+            }
+
+            // create a JWT containing the person's id, role, and staff_permissions (null for patrons). role 1 = staff, role 2 = user/patron. the token expires in 8 hours
             const token = jwt.sign(
-                { person_id: person.Person_ID, role: person.role },
+                { person_id: person.Person_ID, role: person.role, staff_permissions },
                 process.env.JWT_SECRET,
                 { expiresIn: '8h' }
             );
 
             res.writeHead(200);
-            res.end(JSON.stringify({ token, role: person.role }));
+            res.end(JSON.stringify({ token, role: person.role, staff_permissions }));
         } catch (err) {
             res.writeHead(500);
             res.end(JSON.stringify({ error: 'Login failed', details: err.message }));
