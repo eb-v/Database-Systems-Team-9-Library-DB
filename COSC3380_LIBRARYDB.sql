@@ -51,12 +51,12 @@ CREATE TABLE IF NOT EXISTS Copy (
 
 
 CREATE TABLE IF NOT EXISTS Person (
-  Person_ID       INT PRIMARY KEY NOT NULL,
+  Person_ID       INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
   First_name      VARCHAR(50) NOT NULL,
   Last_name       VARCHAR(50) NOT NULL,
   email           VARCHAR(50) ,
   username        VARCHAR(50) ,
-  password        VARCHAR(60) ,
+  password        VARCHAR(255) ,
   role            SMALLINT NOT NULL,
   phone_number    VARCHAR(20) ,
   birthday        DATE,
