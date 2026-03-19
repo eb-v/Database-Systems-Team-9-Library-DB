@@ -18,12 +18,13 @@
    cd server
    npm install
    ```
-   Copy `.env.example` to `.env` and fill in your database credentials:
+   Copy `.env.example` to `.env` and fill in your database credentials and JWT secret:
    ```
    DB_HOST=
    DB_USER=
    DB_PASSWORD=
    DB_NAME=
+   JWT_SECRET=
    ```
 
 3. Set up the client
