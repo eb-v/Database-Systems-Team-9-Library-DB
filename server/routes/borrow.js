@@ -174,7 +174,7 @@ async function getBorrowedItems(req, res) {
 
 async function getAllActiveBorrows(req, res) {
     try {
-        // get all currently checked out copies (Copy_status 2 = checked out) across all patrons
+        // get all currently checked out copies (Copy_status 2 = checked out) across all patrons. use MAX(BorrowedItem_ID) per copy to ensure we only get the most recent borrow record, not old history
         const [rows] = await db.query(
             `SELECT
                 bi.BorrowedItem_ID, bi.borrow_date, bi.returnBy_date,
@@ -185,6 +185,9 @@ async function getAllActiveBorrows(req, res) {
              JOIN Item i ON cp.Item_ID = i.Item_ID
              JOIN Person p ON bi.Person_ID = p.Person_ID
              WHERE cp.Copy_status = 2
+               AND bi.BorrowedItem_ID = (
+                   SELECT MAX(b2.BorrowedItem_ID) FROM BorrowedItem b2 WHERE b2.Copy_ID = bi.Copy_ID
+               )
              ORDER BY bi.returnBy_date ASC`
         );
 
