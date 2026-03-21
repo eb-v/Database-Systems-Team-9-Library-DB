@@ -79,7 +79,7 @@ CREATE TABLE IF NOT EXISTS User (
 
 
 CREATE TABLE IF NOT EXISTS BorrowedItem (
-  BorrowedItem_ID  INT PRIMARY KEY NOT NULL,
+  BorrowedItem_ID  INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
   borrow_date      DATE NOT NULL,
   returnBy_date    DATE NOT NULL,
   Person_ID        INT NOT NULL,

@@ -3,6 +3,7 @@ const PORT = 3000;
 const db = require('./db');
 const auth = require('./routes/auth');
 const items = require('./routes/items');
+const borrow = require('./routes/borrow');
 const { verifyToken, requireRole, requireAdmin } = require('./middleware/auth');
 
 const server = http.createServer((req, res) => {
@@ -86,6 +87,12 @@ const server = http.createServer((req, res) => {
             requireRole(1)(req, res, () => {
                 items.addItem(req, res);
             });
+        });
+
+    // any logged-in user can borrow an item
+    } else if (req.method === 'POST' && req.url === '/api/borrow') {
+        verifyToken(req, res, () => {
+            borrow.borrowItem(req, res);
         });
 
     // admin-only route — register a new staff member
