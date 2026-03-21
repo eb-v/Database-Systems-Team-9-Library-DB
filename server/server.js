@@ -89,6 +89,14 @@ const server = http.createServer((req, res) => {
             });
         });
 
+    // staff-only — view all currently checked out items across all patrons
+    } else if (req.method === 'GET' && req.url === '/api/borrow') {
+        verifyToken(req, res, () => {
+            requireRole(1)(req, res, () => {
+                borrow.getAllActiveBorrows(req, res);
+            });
+        });
+
     // any logged-in user can view borrowed items for a person
     } else if (req.method === 'GET' && req.url.startsWith('/api/borrow/')) {
         verifyToken(req, res, () => {

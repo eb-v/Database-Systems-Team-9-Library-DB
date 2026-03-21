@@ -166,4 +166,28 @@ async function getBorrowedItems(req, res) {
     }
 }
 
-module.exports = { borrowItem, returnItem, getBorrowedItems };
+async function getAllActiveBorrows(req, res) {
+    try {
+        // get all currently checked out copies (Copy_status 2 = checked out) across all patrons
+        const [rows] = await db.query(
+            `SELECT
+                bi.BorrowedItem_ID, bi.borrow_date, bi.returnBy_date,
+                bi.Person_ID, p.First_name, p.Last_name,
+                bi.Copy_ID, i.Item_ID, i.Item_name, i.Item_type
+             FROM BorrowedItem bi
+             JOIN Copy cp ON bi.Copy_ID = cp.Copy_ID
+             JOIN Item i ON cp.Item_ID = i.Item_ID
+             JOIN Person p ON bi.Person_ID = p.Person_ID
+             WHERE cp.Copy_status = 2
+             ORDER BY bi.returnBy_date ASC`
+        );
+
+        res.writeHead(200);
+        res.end(JSON.stringify(rows));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to fetch active borrows', details: err.message }));
+    }
+}
+
+module.exports = { borrowItem, returnItem, getBorrowedItems, getAllActiveBorrows };
