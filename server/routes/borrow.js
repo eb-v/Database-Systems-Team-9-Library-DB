@@ -8,6 +8,12 @@ async function borrowItem(req, res) {
         try {
             const { person_id, copy_id } = JSON.parse(body);
 
+            // anyone can only borrow on their own behalf
+            if (req.user.person_id !== person_id) {
+                res.writeHead(403);
+                return res.end(JSON.stringify({ error: 'You can only borrow on your own behalf' }));
+            }
+
             // step 1 — check the copy exists and is available (Copy_status 1 = available)
             const [copyRows] = await db.query(
                 `SELECT Copy_status FROM Copy WHERE Copy_ID = ?`,
