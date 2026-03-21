@@ -2,6 +2,7 @@ const http = require('http');
 const PORT = 3000;
 const db = require('./db');
 const auth = require('./routes/auth');
+const items = require('./routes/items');
 const { verifyToken, requireRole, requireAdmin } = require('./middleware/auth');
 
 const server = http.createServer((req, res) => {
@@ -48,6 +49,42 @@ const server = http.createServer((req, res) => {
             requireRole(1)(req, res, () => {
                 res.writeHead(200);
                 res.end(JSON.stringify({ message: 'Welcome, staff member' }));
+            });
+        });
+
+    // any logged-in user can browse the item catalog
+    } else if (req.method === 'GET' && req.url.startsWith('/api/items') && !req.url.startsWith('/api/items/')) {
+        verifyToken(req, res, () => {
+            items.getItems(req, res);
+        });
+
+    // staff-only route — soft delete a specific copy
+    } else if (req.method === 'DELETE' && req.url.startsWith('/api/items/')) {
+        verifyToken(req, res, () => {
+            requireRole(1)(req, res, () => {
+                items.deleteCopy(req, res);
+            });
+        });
+
+    // staff-only route — edit an existing item
+    } else if (req.method === 'PUT' && req.url.startsWith('/api/items/')) {
+        verifyToken(req, res, () => {
+            requireRole(1)(req, res, () => {
+                items.updateItem(req, res);
+            });
+        });
+
+    // any logged-in user can get a single item's full details
+    } else if (req.method === 'GET' && req.url.startsWith('/api/items/')) {
+        verifyToken(req, res, () => {
+            items.getItemById(req, res);
+        });
+
+    // staff-only route — add a new item to the library
+    } else if (req.method === 'POST' && req.url === '/api/items') {
+        verifyToken(req, res, () => {
+            requireRole(1)(req, res, () => {
+                items.addItem(req, res);
             });
         });
 
