@@ -58,6 +58,12 @@ const server = http.createServer((req, res) => {
             items.getItems(req, res);
         });
 
+    // any logged-in user can get a single item's full details
+    } else if (req.method === 'GET' && req.url.startsWith('/api/items/')) {
+        verifyToken(req, res, () => {
+            items.getItemById(req, res);
+        });
+
     // staff-only route — add a new item to the library
     } else if (req.method === 'POST' && req.url === '/api/items') {
         verifyToken(req, res, () => {

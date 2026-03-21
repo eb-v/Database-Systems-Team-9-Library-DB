@@ -100,4 +100,65 @@ async function getItems(req, res) {
     }
 }
 
-module.exports = { addItem, getItems };
+async function getItemById(req, res) {
+    try {
+        // extract the item ID from the URL — e.g. /api/items/5 → itemId = 5
+        const itemId = req.url.split('/')[3];
+
+        // same joins as getItems but filtered to one specific item. also pull each copy as its own row so the frontend knows individual copy statuses
+        const [rows] = await db.query(
+            `SELECT
+                i.Item_ID, i.Item_name, i.Item_type,
+                b.author_firstName, b.author_lastName, b.publisher, b.language, b.year_published, b.Book_damage_fine, b.Book_loss_fine,
+                c.CD_type, c.rating, c.release_date, c.CD_damage_fine, c.CD_loss_fine,
+                d.Device_type, d.Device_damage_fine, d.Device_loss_fine,
+                cp.Copy_ID, cp.Copy_status
+            FROM Item i
+            LEFT JOIN Book b ON i.Item_ID = b.Item_ID
+            LEFT JOIN CD c ON i.Item_ID = c.Item_ID
+            LEFT JOIN Device d ON i.Item_ID = d.Item_ID
+            LEFT JOIN Copy cp ON i.Item_ID = cp.Item_ID
+            WHERE i.Item_ID = ?`,
+            [itemId]
+        );
+
+        // if no rows came back, that item doesn't exist
+        if (rows.length === 0) {
+            res.writeHead(404);
+            return res.end(JSON.stringify({ error: 'Item not found' }));
+        }
+
+        // the item info is the same on every row — only the copy columns differ. so pull item details from the first row, then collect all copies into an array
+        const item = {
+            Item_ID: rows[0].Item_ID,
+            Item_name: rows[0].Item_name,
+            Item_type: rows[0].Item_type,
+            author_firstName: rows[0].author_firstName,
+            author_lastName: rows[0].author_lastName,
+            publisher: rows[0].publisher,
+            language: rows[0].language,
+            year_published: rows[0].year_published,
+            Book_damage_fine: rows[0].Book_damage_fine,
+            Book_loss_fine: rows[0].Book_loss_fine,
+            CD_type: rows[0].CD_type,
+            rating: rows[0].rating,
+            release_date: rows[0].release_date,
+            CD_damage_fine: rows[0].CD_damage_fine,
+            CD_loss_fine: rows[0].CD_loss_fine,
+            Device_type: rows[0].Device_type,
+            Device_damage_fine: rows[0].Device_damage_fine,
+            Device_loss_fine: rows[0].Device_loss_fine,
+            copies: rows
+                .filter(r => r.Copy_ID !== null)
+                .map(r => ({ Copy_ID: r.Copy_ID, Copy_status: r.Copy_status }))
+        };
+
+        res.writeHead(200);
+        res.end(JSON.stringify(item));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to fetch item', details: err.message }));
+    }
+}
+
+module.exports = { addItem, getItems, getItemById };
