@@ -221,4 +221,32 @@ async function updateItem(req, res) {
     });
 }
 
-module.exports = { addItem, getItems, getItemById, updateItem };
+async function deleteCopy(req, res) {
+    try {
+        // URL is /api/items/:id/copies/:copyId — split gives us ['', 'api', 'items', itemId, 'copies', copyId]
+        const parts = req.url.split('/');
+        const itemId = parts[3];
+        const copyId = parts[5];
+
+        // check the copy exists and belongs to the item
+        const [copyRows] = await db.query(
+            `SELECT Copy_ID FROM Copy WHERE Copy_ID = ? AND Item_ID = ?`,
+            [copyId, itemId]
+        );
+        if (copyRows.length === 0) {
+            res.writeHead(404);
+            return res.end(JSON.stringify({ error: 'Copy not found' }));
+        }
+
+        // soft delete — set Copy_status to 0 (removed from circulation) instead of deleting the row
+        await db.query(`UPDATE Copy SET Copy_status = 0 WHERE Copy_ID = ?`, [copyId]);
+
+        res.writeHead(200);
+        res.end(JSON.stringify({ message: 'Copy removed from circulation' }));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to remove copy', details: err.message }));
+    }
+}
+
+module.exports = { addItem, getItems, getItemById, updateItem, deleteCopy };

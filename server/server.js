@@ -58,6 +58,14 @@ const server = http.createServer((req, res) => {
             items.getItems(req, res);
         });
 
+    // staff-only route — soft delete a specific copy
+    } else if (req.method === 'DELETE' && req.url.startsWith('/api/items/')) {
+        verifyToken(req, res, () => {
+            requireRole(1)(req, res, () => {
+                items.deleteCopy(req, res);
+            });
+        });
+
     // staff-only route — edit an existing item
     } else if (req.method === 'PUT' && req.url.startsWith('/api/items/')) {
         verifyToken(req, res, () => {
