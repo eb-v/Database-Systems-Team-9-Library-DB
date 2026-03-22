@@ -41,4 +41,56 @@ async function getFees(req, res) {
     }
 }
 
-module.exports = { getFees };
+async function payFee(req, res) {
+    let body = '';
+
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+        try {
+            const { fine_id, method } = JSON.parse(body);
+
+            // step 1 — check the fee exists and get its details
+            const [feeRows] = await db.query(
+                `SELECT Fine_ID, status, Person_ID FROM FeeOwed WHERE Fine_ID = ?`,
+                [fine_id]
+            );
+            if (feeRows.length === 0) {
+                res.writeHead(404);
+                return res.end(JSON.stringify({ error: 'Fee not found' }));
+            }
+
+            // step 2 — check the fee is actually unpaid (status 1 = unpaid)
+            if (feeRows[0].status !== 1) {
+                res.writeHead(400);
+                return res.end(JSON.stringify({ error: 'Fee has already been paid' }));
+            }
+
+            // anyone can only pay their own fees
+            if (req.user.person_id !== parseInt(feeRows[0].Person_ID)) {
+                res.writeHead(403);
+                return res.end(JSON.stringify({ error: 'You can only pay your own fees' }));
+            }
+
+            const today = new Date();
+            const formatDate = (d) => d.toISOString().split('T')[0];
+
+            // step 4 — insert a FeePayment record. method 1 = cash, 2 = card
+            const [result] = await db.query(
+                `INSERT INTO FeePayment (Payment_Date, method, Person_ID, Fine_ID)
+                 VALUES (?, ?, ?, ?)`,
+                [formatDate(today), method, feeRows[0].Person_ID, fine_id]
+            );
+
+            // step 5 — mark the fee as paid (status 2 = paid)
+            await db.query(`UPDATE FeeOwed SET status = 2 WHERE Fine_ID = ?`, [fine_id]);
+
+            res.writeHead(201);
+            res.end(JSON.stringify({ message: 'Fee paid successfully', payment_id: result.insertId }));
+        } catch (err) {
+            res.writeHead(500);
+            res.end(JSON.stringify({ error: 'Failed to process payment', details: err.message }));
+        }
+    });
+}
+
+module.exports = { getFees, payFee };

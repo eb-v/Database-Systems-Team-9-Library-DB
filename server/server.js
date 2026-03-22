@@ -122,6 +122,12 @@ const server = http.createServer((req, res) => {
             fees.getFees(req, res);
         });
 
+    // any logged-in user can pay their own fees
+    } else if (req.method === 'POST' && req.url === '/api/fees/pay') {
+        verifyToken(req, res, () => {
+            fees.payFee(req, res);
+        });
+
     // admin-only route — register a new staff member
     } else if (req.method === 'POST' && req.url === '/api/auth/register-staff') {
         verifyToken(req, res, () => {
