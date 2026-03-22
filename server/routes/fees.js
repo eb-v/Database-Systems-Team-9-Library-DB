@@ -93,4 +93,29 @@ async function payFee(req, res) {
     });
 }
 
-module.exports = { getFees, payFee };
+async function getAllFees(req, res) {
+    try {
+        // get all fees across all patrons — frontend can filter by status for paid/unpaid
+        const [rows] = await db.query(
+            `SELECT
+                f.Fine_ID, f.date_owed, f.status, f.late_fee,
+                f.Person_ID, p.First_name, p.Last_name,
+                f.BorrowedItem_ID, bi.borrow_date, bi.returnBy_date,
+                i.Item_name, i.Item_type
+             FROM FeeOwed f
+             JOIN Person p ON f.Person_ID = p.Person_ID
+             JOIN BorrowedItem bi ON f.BorrowedItem_ID = bi.BorrowedItem_ID
+             JOIN Copy cp ON bi.Copy_ID = cp.Copy_ID
+             JOIN Item i ON cp.Item_ID = i.Item_ID
+             ORDER BY f.date_owed DESC`
+        );
+
+        res.writeHead(200);
+        res.end(JSON.stringify(rows));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to fetch fees', details: err.message }));
+    }
+}
+
+module.exports = { getFees, payFee, getAllFees };

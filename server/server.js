@@ -116,6 +116,14 @@ const server = http.createServer((req, res) => {
             borrow.returnItem(req, res);
         });
 
+    // staff-only — view all fees across all patrons
+    } else if (req.method === 'GET' && req.url === '/api/fees') {
+        verifyToken(req, res, () => {
+            requireRole(1)(req, res, () => {
+                fees.getAllFees(req, res);
+            });
+        });
+
     // any logged-in user can view their own fees, staff can view anyone's
     } else if (req.method === 'GET' && req.url.startsWith('/api/fees/')) {
         verifyToken(req, res, () => {
