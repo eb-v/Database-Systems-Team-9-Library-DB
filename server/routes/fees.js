@@ -118,4 +118,30 @@ async function getAllFees(req, res) {
     }
 }
 
-module.exports = { getFees, payFee, getAllFees };
+async function getAllPayments(req, res) {
+    try {
+        // get all payment records — join FeeOwed and Person so we can show who paid and for what
+        const [rows] = await db.query(
+            `SELECT
+                fp.Payment_ID, fp.Payment_Date, fp.method,
+                fp.Person_ID, p.First_name, p.Last_name,
+                fp.Fine_ID, f.late_fee, f.date_owed,
+                i.Item_name, i.Item_type
+             FROM FeePayment fp
+             JOIN Person p ON fp.Person_ID = p.Person_ID
+             JOIN FeeOwed f ON fp.Fine_ID = f.Fine_ID
+             JOIN BorrowedItem bi ON f.BorrowedItem_ID = bi.BorrowedItem_ID
+             JOIN Copy cp ON bi.Copy_ID = cp.Copy_ID
+             JOIN Item i ON cp.Item_ID = i.Item_ID
+             ORDER BY fp.Payment_Date DESC`
+        );
+
+        res.writeHead(200);
+        res.end(JSON.stringify(rows));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to fetch payments', details: err.message }));
+    }
+}
+
+module.exports = { getFees, payFee, getAllFees, getAllPayments };
