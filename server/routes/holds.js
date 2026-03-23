@@ -146,4 +146,27 @@ async function getHoldsForPerson(req, res) {
     }
 }
 
-module.exports = { placeHold, getHoldsForPerson };
+async function getAllHolds(req, res) {
+    try {
+        // get all holds across all patrons — join Person, Copy, and Item for full details
+        const [rows] = await db.query(
+            `SELECT
+                h.Hold_ID, h.queue_status, h.hold_status, h.hold_date, h.expiry_date,
+                h.Person_ID, p.First_name, p.Last_name,
+                h.Copy_ID, i.Item_ID, i.Item_name, i.Item_type
+             FROM HoldItem h
+             JOIN Person p ON h.Person_ID = p.Person_ID
+             JOIN Copy c ON h.Copy_ID = c.Copy_ID
+             JOIN Item i ON c.Item_ID = i.Item_ID
+             ORDER BY h.hold_date DESC`
+        );
+
+        res.writeHead(200);
+        res.end(JSON.stringify(rows));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to fetch all holds', details: err.message }));
+    }
+}
+
+module.exports = { placeHold, getHoldsForPerson, getAllHolds };

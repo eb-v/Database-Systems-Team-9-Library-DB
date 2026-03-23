@@ -145,6 +145,14 @@ const server = http.createServer((req, res) => {
             fees.payFee(req, res);
         });
 
+    // staff-only — view all holds
+    } else if (req.method === 'GET' && req.url === '/api/holds') {
+        verifyToken(req, res, () => {
+            requireRole(1)(req, res, () => {
+                holds.getAllHolds(req, res);
+            });
+        });
+
     // any logged-in user can place a hold on their own behalf
     } else if (req.method === 'POST' && req.url === '/api/holds') {
         verifyToken(req, res, () => {
