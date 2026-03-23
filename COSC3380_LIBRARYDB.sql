@@ -102,17 +102,18 @@ CREATE TABLE IF NOT EXISTS HoldItem (
 );
 
 CREATE TABLE IF NOT EXISTS Room (
-  Room_ID      INT PRIMARY KEY NOT NULL,
+  Room_ID      INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
   Room_status  SMALLINT
 );
 
 
 CREATE TABLE IF NOT EXISTS RoomReservation (
-  Reservation_ID  INT PRIMARY KEY NOT NULL,
-  start_time      DATETIME NOT NULL,
-  length          TIME NOT NULL,
-  Person_ID       INT NOT NULL,
-  Room_ID         INT NOT NULL,
+  Reservation_ID       INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
+  start_time           DATETIME NOT NULL,
+  length               TIME NOT NULL,
+  reservation_status   SMALLINT DEFAULT 1,
+  Person_ID            INT NOT NULL,
+  Room_ID              INT NOT NULL,
   FOREIGN KEY (Person_ID) REFERENCES Person(Person_ID),
   FOREIGN KEY (Room_ID) REFERENCES Room(Room_ID)
 );
