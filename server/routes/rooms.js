@@ -158,4 +158,45 @@ async function getAllReservations(req, res) {
     }
 }
 
-module.exports = { addRoom, makeReservation, getReservationsForPerson, getAllReservations };
+async function cancelReservation(req, res) {
+    try {
+        const reservationId = req.url.split('/')[3];
+
+        // look up the reservation
+        const [reservationRows] = await db.query(
+            `SELECT * FROM RoomReservation WHERE Reservation_ID = ?`,
+            [reservationId]
+        );
+        if (reservationRows.length === 0) {
+            res.writeHead(404);
+            return res.end(JSON.stringify({ error: 'Reservation not found' }));
+        }
+
+        const reservation = reservationRows[0];
+
+        // anyone can only cancel their own reservation
+        if (req.user.person_id !== parseInt(reservation.Person_ID)) {
+            res.writeHead(403);
+            return res.end(JSON.stringify({ error: 'You can only cancel your own reservations' }));
+        }
+
+        if (reservation.reservation_status === 0) {
+            res.writeHead(400);
+            return res.end(JSON.stringify({ error: 'Reservation is already cancelled' }));
+        }
+
+        // soft delete
+        await db.query(
+            `UPDATE RoomReservation SET reservation_status = 0 WHERE Reservation_ID = ?`,
+            [reservationId]
+        );
+
+        res.writeHead(200);
+        res.end(JSON.stringify({ message: 'Reservation cancelled successfully' }));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to cancel reservation', details: err.message }));
+    }
+}
+
+module.exports = { addRoom, makeReservation, getReservationsForPerson, getAllReservations, cancelReservation };

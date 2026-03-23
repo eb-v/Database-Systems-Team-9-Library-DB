@@ -154,6 +154,12 @@ const server = http.createServer((req, res) => {
             });
         });
 
+    // any logged-in user can cancel their own reservation
+    } else if (req.method === 'DELETE' && req.url.startsWith('/api/reservations/')) {
+        verifyToken(req, res, () => {
+            rooms.cancelReservation(req, res);
+        });
+
     // any logged-in user can view reservations for a specific person (patrons restricted to own)
     } else if (req.method === 'GET' && req.url.startsWith('/api/reservations/')) {
         verifyToken(req, res, () => {
