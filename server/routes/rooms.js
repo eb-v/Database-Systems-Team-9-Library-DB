@@ -138,4 +138,24 @@ async function getReservationsForPerson(req, res) {
     }
 }
 
-module.exports = { addRoom, makeReservation, getReservationsForPerson };
+async function getAllReservations(req, res) {
+    try {
+        // get all reservations across all patrons
+        const [rows] = await db.query(
+            `SELECT
+                r.Reservation_ID, r.start_time, r.length, r.reservation_status,
+                r.Room_ID, r.Person_ID, p.First_name, p.Last_name
+             FROM RoomReservation r
+             JOIN Person p ON r.Person_ID = p.Person_ID
+             ORDER BY r.start_time DESC`
+        );
+
+        res.writeHead(200);
+        res.end(JSON.stringify(rows));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to fetch all reservations', details: err.message }));
+    }
+}
+
+module.exports = { addRoom, makeReservation, getReservationsForPerson, getAllReservations };

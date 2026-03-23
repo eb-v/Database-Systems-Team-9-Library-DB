@@ -146,6 +146,14 @@ const server = http.createServer((req, res) => {
             fees.payFee(req, res);
         });
 
+    // staff-only — view all reservations
+    } else if (req.method === 'GET' && req.url === '/api/reservations') {
+        verifyToken(req, res, () => {
+            requireRole(1)(req, res, () => {
+                rooms.getAllReservations(req, res);
+            });
+        });
+
     // any logged-in user can view reservations for a specific person (patrons restricted to own)
     } else if (req.method === 'GET' && req.url.startsWith('/api/reservations/')) {
         verifyToken(req, res, () => {
