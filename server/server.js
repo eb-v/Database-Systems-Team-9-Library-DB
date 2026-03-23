@@ -151,6 +151,12 @@ const server = http.createServer((req, res) => {
             holds.placeHold(req, res);
         });
 
+    // any logged-in user can view holds for a specific person (patrons restricted to own)
+    } else if (req.method === 'GET' && req.url.startsWith('/api/holds/')) {
+        verifyToken(req, res, () => {
+            holds.getHoldsForPerson(req, res);
+        });
+
     // admin-only route — register a new staff member
     } else if (req.method === 'POST' && req.url === '/api/auth/register-staff') {
         verifyToken(req, res, () => {

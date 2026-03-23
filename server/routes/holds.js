@@ -109,4 +109,41 @@ async function placeHold(req, res) {
     });
 }
 
-module.exports = { placeHold };
+async function getHoldsForPerson(req, res) {
+    try {
+        const personId = req.url.split('/')[3];
+
+        // patrons can only view their own holds
+        if (req.user.role === 2 && req.user.person_id !== parseInt(personId)) {
+            res.writeHead(403);
+            return res.end(JSON.stringify({ error: 'Access denied' }));
+        }
+
+        const [personRows] = await db.query(`SELECT Person_ID FROM Person WHERE Person_ID = ?`, [personId]);
+        if (personRows.length === 0) {
+            res.writeHead(404);
+            return res.end(JSON.stringify({ error: 'Person not found' }));
+        }
+
+        const [rows] = await db.query(
+            `SELECT
+                h.Hold_ID, h.queue_status, h.hold_status, h.hold_date, h.expiry_date,
+                h.Copy_ID, h.Person_ID,
+                i.Item_ID, i.Item_name, i.Item_type
+             FROM HoldItem h
+             JOIN Copy c ON h.Copy_ID = c.Copy_ID
+             JOIN Item i ON c.Item_ID = i.Item_ID
+             WHERE h.Person_ID = ?
+             ORDER BY h.hold_date DESC`,
+            [personId]
+        );
+
+        res.writeHead(200);
+        res.end(JSON.stringify(rows));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to fetch holds', details: err.message }));
+    }
+}
+
+module.exports = { placeHold, getHoldsForPerson };
