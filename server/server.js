@@ -159,6 +159,12 @@ const server = http.createServer((req, res) => {
             holds.placeHold(req, res);
         });
 
+    // any logged-in user can cancel a hold (patrons restricted to own, staff can cancel any)
+    } else if (req.method === 'DELETE' && req.url.startsWith('/api/holds/')) {
+        verifyToken(req, res, () => {
+            holds.cancelHold(req, res);
+        });
+
     // any logged-in user can view holds for a specific person (patrons restricted to own)
     } else if (req.method === 'GET' && req.url.startsWith('/api/holds/')) {
         verifyToken(req, res, () => {

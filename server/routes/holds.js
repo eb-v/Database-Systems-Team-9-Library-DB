@@ -169,4 +169,64 @@ async function getAllHolds(req, res) {
     }
 }
 
-module.exports = { placeHold, getHoldsForPerson, getAllHolds };
+async function cancelHold(req, res) {
+    try {
+        const holdId = req.url.split('/')[3];
+
+        // look up the hold
+        const [holdRows] = await db.query(`SELECT * FROM HoldItem WHERE Hold_ID = ?`, [holdId]);
+        if (holdRows.length === 0) {
+            res.writeHead(404);
+            return res.end(JSON.stringify({ error: 'Hold not found' }));
+        }
+
+        const hold = holdRows[0];
+
+        // anyone can only cancel their own holds
+        if (req.user.person_id !== parseInt(hold.Person_ID)) {
+            res.writeHead(403);
+            return res.end(JSON.stringify({ error: 'You can only cancel your own holds' }));
+        }
+
+        if (hold.hold_status === 0) {
+            res.writeHead(400);
+            return res.end(JSON.stringify({ error: 'Hold is already cancelled' }));
+        }
+        if (hold.hold_status === 3) {
+            res.writeHead(400);
+            return res.end(JSON.stringify({ error: 'Cannot cancel a fulfilled hold' }));
+        }
+
+        // soft delete
+        await db.query(`UPDATE HoldItem SET hold_status = 0 WHERE Hold_ID = ?`, [holdId]);
+
+        // shift queue — decrement everyone behind this hold on the same copy
+        await db.query(
+            `UPDATE HoldItem SET queue_status = queue_status - 1
+             WHERE Copy_ID = ? AND hold_status IN (1, 2) AND queue_status > ?`,
+            [hold.Copy_ID, hold.queue_status]
+        );
+
+        // if the copy is available and there is now a hold at position 0, mark it ready
+        const [copyRows] = await db.query(`SELECT Copy_status FROM Copy WHERE Copy_ID = ?`, [hold.Copy_ID]);
+        if (copyRows[0].Copy_status === 1) {
+            const expiry = new Date();
+            expiry.setDate(expiry.getDate() + 2);
+            const expiryDate = expiry.toISOString().split('T')[0];
+
+            await db.query(
+                `UPDATE HoldItem SET hold_status = 2, expiry_date = ?
+                 WHERE Copy_ID = ? AND hold_status = 1 AND queue_status = 0`,
+                [expiryDate, hold.Copy_ID]
+            );
+        }
+
+        res.writeHead(200);
+        res.end(JSON.stringify({ message: 'Hold cancelled successfully' }));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to cancel hold', details: err.message }));
+    }
+}
+
+module.exports = { placeHold, getHoldsForPerson, getAllHolds, cancelHold };
