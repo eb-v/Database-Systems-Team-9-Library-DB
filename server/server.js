@@ -5,6 +5,7 @@ const auth = require('./routes/auth');
 const items = require('./routes/items');
 const borrow = require('./routes/borrow');
 const fees = require('./routes/fees');
+const holds = require('./routes/holds');
 const { verifyToken, requireRole, requireAdmin } = require('./middleware/auth');
 
 const server = http.createServer((req, res) => {
@@ -142,6 +143,12 @@ const server = http.createServer((req, res) => {
     } else if (req.method === 'POST' && req.url === '/api/fees/pay') {
         verifyToken(req, res, () => {
             fees.payFee(req, res);
+        });
+
+    // any logged-in user can place a hold on their own behalf
+    } else if (req.method === 'POST' && req.url === '/api/holds') {
+        verifyToken(req, res, () => {
+            holds.placeHold(req, res);
         });
 
     // admin-only route — register a new staff member
