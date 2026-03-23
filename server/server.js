@@ -6,6 +6,7 @@ const items = require('./routes/items');
 const borrow = require('./routes/borrow');
 const fees = require('./routes/fees');
 const holds = require('./routes/holds');
+const rooms = require('./routes/rooms');
 const { verifyToken, requireRole, requireAdmin } = require('./middleware/auth');
 
 const server = http.createServer((req, res) => {
@@ -143,6 +144,14 @@ const server = http.createServer((req, res) => {
     } else if (req.method === 'POST' && req.url === '/api/fees/pay') {
         verifyToken(req, res, () => {
             fees.payFee(req, res);
+        });
+
+    // staff-only — add a new room
+    } else if (req.method === 'POST' && req.url === '/api/rooms') {
+        verifyToken(req, res, () => {
+            requireRole(1)(req, res, () => {
+                rooms.addRoom(req, res);
+            });
         });
 
     // staff-only — view all holds
