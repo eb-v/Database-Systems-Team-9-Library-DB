@@ -52,6 +52,12 @@ async function makeReservation(req, res) {
             const startDate = new Date(start_time);
             const endDate = new Date(startDate.getTime() + length * 60 * 60 * 1000);
 
+            // format datetime using local time to avoid UTC offset in responses
+            const formatDatetime = (d) => {
+                const pad = (n) => String(n).padStart(2, '0');
+                return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())} ${pad(d.getHours())}:${pad(d.getMinutes())}:${pad(d.getSeconds())}`;
+            };
+
             // find the first available room for the requested time slot
             const [availableRooms] = await db.query(
                 `SELECT Room_ID FROM Room
@@ -102,7 +108,7 @@ async function makeReservation(req, res) {
                 res.writeHead(400);
                 return res.end(JSON.stringify({
                     error: 'No rooms available for the requested time slot',
-                    next_available: nextAvailable
+                    next_available: nextAvailable ? formatDatetime(nextAvailable) : null
                 }));
             }
 
@@ -122,8 +128,8 @@ async function makeReservation(req, res) {
                 message: 'Reservation made successfully',
                 reservation_id: result.insertId,
                 room_id: assignedRoomId,
-                start_time: startDate,
-                end_time: endDate,
+                start_time: formatDatetime(startDate),
+                end_time: formatDatetime(endDate),
                 length_hours: length
             }));
         } catch (err) {
