@@ -139,7 +139,7 @@ async function returnItem(req, res) {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
         try {
-            const { borrowedItem_id } = JSON.parse(body);
+            const { borrowedItem_id, damaged, lost } = JSON.parse(body);
 
             // step 1 — look up the borrowed item record, join Copy and Item to get copy_id and item_type
             const [borrowRows] = await db.query(
@@ -189,14 +189,39 @@ async function returnItem(req, res) {
                 );
             }
 
-            // step 5 — set copy status back to 1 (available)
-            await db.query(`UPDATE Copy SET Copy_status = 1 WHERE Copy_ID = ?`, [record.Copy_ID]);
+            // step 4b — issue damage fee if item is returned damaged. fee_type 2 = damage
+            if (damaged) {
+                const damageFeeMap = { 1: 25.00, 2: 15.00, 3: 50.00 };
+                const damageFee = damageFeeMap[record.Item_type] || 25.00;
+                await db.query(
+                    `INSERT INTO FeeOwed (date_owed, status, fee_amount, fee_type, Person_ID, BorrowedItem_ID)
+                     VALUES (?, 1, ?, 2, ?, ?)`,
+                    [formatDate(today), damageFee, record.Person_ID, borrowedItem_id]
+                );
+            }
+
+            // step 4c — issue loss fee if item is lost. fee_type 3 = loss
+            if (lost) {
+                const lossFeeMap = { 1: 30.00, 2: 20.00, 3: 100.00 };
+                const lossFee = lossFeeMap[record.Item_type] || 30.00;
+                await db.query(
+                    `INSERT INTO FeeOwed (date_owed, status, fee_amount, fee_type, Person_ID, BorrowedItem_ID)
+                     VALUES (?, 1, ?, 3, ?, ?)`,
+                    [formatDate(today), lossFee, record.Person_ID, borrowedItem_id]
+                );
+            }
+
+            // step 5 — set copy status. 1 = available, 3 = lost, 4 = damaged
+            const newCopyStatus = lost ? 3 : damaged ? 4 : 1;
+            await db.query(`UPDATE Copy SET Copy_status = ? WHERE Copy_ID = ?`, [newCopyStatus, record.Copy_ID]);
 
 
             res.writeHead(200);
             res.end(JSON.stringify({
                 message: 'Item returned successfully',
                 late: isLate,
+                damaged: !!damaged,
+                lost: !!lost,
                 fee_charged: isLate ? (({ 1: 5.00, 2: 10.00, 3: 20.00 })[record.Item_type] || 5.00) : 0
             }));
         } catch (err) {
