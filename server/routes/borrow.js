@@ -163,8 +163,8 @@ async function returnItem(req, res) {
                 return res.end(JSON.stringify({ error: 'You can only return your own borrowed items' }));
             }
 
-            // check the item hasn't already been returned
-            if (record.Copy_status === 1) {
+            // check the item hasn't already been returned (1 = available, 3 = lost, 4 = damaged)
+            if (record.Copy_status !== 2) {
                 res.writeHead(400);
                 return res.end(JSON.stringify({ error: 'This item has already been returned' }));
             }
@@ -222,7 +222,11 @@ async function returnItem(req, res) {
                 late: isLate,
                 damaged: !!damaged,
                 lost: !!lost,
-                fee_charged: isLate ? (({ 1: 5.00, 2: 10.00, 3: 20.00 })[record.Item_type] || 5.00) : 0
+                fees_charged: {
+                    late: isLate ? (({ 1: 5.00, 2: 10.00, 3: 20.00 })[record.Item_type] || 5.00) : 0,
+                    damage: damaged ? (({ 1: 25.00, 2: 15.00, 3: 50.00 })[record.Item_type] || 25.00) : 0,
+                    loss: lost ? (({ 1: 30.00, 2: 20.00, 3: 100.00 })[record.Item_type] || 30.00) : 0
+                }
             }));
         } catch (err) {
             res.writeHead(500);
