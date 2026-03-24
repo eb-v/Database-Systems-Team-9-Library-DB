@@ -49,6 +49,11 @@ async function payFee(req, res) {
         try {
             const { fine_id, method } = JSON.parse(body);
 
+            if (!method) {
+                res.writeHead(400);
+                return res.end(JSON.stringify({ error: 'Payment method is required' }));
+            }
+
             // step 1 — check the fee exists and get its details
             const [feeRows] = await db.query(
                 `SELECT Fine_ID, status, Person_ID FROM FeeOwed WHERE Fine_ID = ?`,
