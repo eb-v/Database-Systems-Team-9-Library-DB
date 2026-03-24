@@ -21,7 +21,7 @@ async function getFees(req, res) {
         // get all fees for this person — join BorrowedItem and Item so we can show what item the fee is for
         const [rows] = await db.query(
             `SELECT
-                f.Fine_ID, f.date_owed, f.status, f.late_fee,
+                f.Fine_ID, f.date_owed, f.status, f.fee_amount, f.fee_type,
                 f.BorrowedItem_ID, bi.borrow_date, bi.returnBy_date,
                 i.Item_name, i.Item_type
              FROM FeeOwed f
@@ -48,6 +48,11 @@ async function payFee(req, res) {
     req.on('end', async () => {
         try {
             const { fine_id, method } = JSON.parse(body);
+
+            if (!method) {
+                res.writeHead(400);
+                return res.end(JSON.stringify({ error: 'Payment method is required' }));
+            }
 
             // step 1 — check the fee exists and get its details
             const [feeRows] = await db.query(
@@ -98,7 +103,7 @@ async function getAllFees(req, res) {
         // get all fees across all patrons — frontend can filter by status for paid/unpaid
         const [rows] = await db.query(
             `SELECT
-                f.Fine_ID, f.date_owed, f.status, f.late_fee,
+                f.Fine_ID, f.date_owed, f.status, f.fee_amount, f.fee_type,
                 f.Person_ID, p.First_name, p.Last_name,
                 f.BorrowedItem_ID, bi.borrow_date, bi.returnBy_date,
                 i.Item_name, i.Item_type
@@ -125,7 +130,7 @@ async function getAllPayments(req, res) {
             `SELECT
                 fp.Payment_ID, fp.Payment_Date, fp.method,
                 fp.Person_ID, p.First_name, p.Last_name,
-                fp.Fine_ID, f.late_fee, f.date_owed,
+                fp.Fine_ID, f.fee_amount, f.fee_type, f.date_owed,
                 i.Item_name, i.Item_type
              FROM FeePayment fp
              JOIN Person p ON fp.Person_ID = p.Person_ID

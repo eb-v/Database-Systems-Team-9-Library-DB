@@ -139,7 +139,7 @@ async function returnItem(req, res) {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
         try {
-            const { borrowedItem_id } = JSON.parse(body);
+            const { borrowedItem_id, damaged, lost } = JSON.parse(body);
 
             // step 1 — look up the borrowed item record, join Copy and Item to get copy_id and item_type
             const [borrowRows] = await db.query(
@@ -163,8 +163,14 @@ async function returnItem(req, res) {
                 return res.end(JSON.stringify({ error: 'You can only return your own borrowed items' }));
             }
 
-            // check the item hasn't already been returned
-            if (record.Copy_status === 1) {
+            // damaged and lost are mutually exclusive
+            if (damaged && lost) {
+                res.writeHead(400);
+                return res.end(JSON.stringify({ error: 'Item cannot be both damaged and lost' }));
+            }
+
+            // check the item hasn't already been returned (1 = available, 3 = lost, 4 = damaged)
+            if (record.Copy_status !== 2) {
                 res.writeHead(400);
                 return res.end(JSON.stringify({ error: 'This item has already been returned' }));
             }
@@ -173,31 +179,60 @@ async function returnItem(req, res) {
             const returnByDate = new Date(record.returnBy_date);
             const formatDate = (d) => d.toISOString().split('T')[0];
 
-            // step 2 — check if return is late
-            const isLate = today > returnByDate;
+            // step 2 — check if return is late (late fee does not apply to lost items)
+            const isLate = !lost && today > returnByDate;
 
             if (isLate) {
                 // step 3 — determine flat fee based on item type. 1 = book $5, 2 = CD $10, 3 = device $20
                 const feeMap = { 1: 5.00, 2: 10.00, 3: 20.00 };
                 const lateFee = feeMap[record.Item_type] || 5.00;
 
-                // step 4 — insert a FeeOwed record. status 1 = unpaid
+                // step 4 — insert a FeeOwed record. status 1 = unpaid, fee_type 1 = late
                 await db.query(
-                    `INSERT INTO FeeOwed (date_owed, status, late_fee, Person_ID, BorrowedItem_ID)
-                     VALUES (?, 1, ?, ?, ?)`,
+                    `INSERT INTO FeeOwed (date_owed, status, fee_amount, fee_type, Person_ID, BorrowedItem_ID)
+                     VALUES (?, 1, ?, 1, ?, ?)`,
                     [formatDate(today), lateFee, record.Person_ID, borrowedItem_id]
                 );
             }
 
-            // step 5 — set copy status back to 1 (available)
-            await db.query(`UPDATE Copy SET Copy_status = 1 WHERE Copy_ID = ?`, [record.Copy_ID]);
+            // step 4b — issue damage fee if item is returned damaged. fee_type 2 = damage
+            if (damaged) {
+                const damageFeeMap = { 1: 25.00, 2: 15.00, 3: 50.00 };
+                const damageFee = damageFeeMap[record.Item_type] || 25.00;
+                await db.query(
+                    `INSERT INTO FeeOwed (date_owed, status, fee_amount, fee_type, Person_ID, BorrowedItem_ID)
+                     VALUES (?, 1, ?, 2, ?, ?)`,
+                    [formatDate(today), damageFee, record.Person_ID, borrowedItem_id]
+                );
+            }
+
+            // step 4c — issue loss fee if item is lost. fee_type 3 = loss
+            if (lost) {
+                const lossFeeMap = { 1: 30.00, 2: 20.00, 3: 100.00 };
+                const lossFee = lossFeeMap[record.Item_type] || 30.00;
+                await db.query(
+                    `INSERT INTO FeeOwed (date_owed, status, fee_amount, fee_type, Person_ID, BorrowedItem_ID)
+                     VALUES (?, 1, ?, 3, ?, ?)`,
+                    [formatDate(today), lossFee, record.Person_ID, borrowedItem_id]
+                );
+            }
+
+            // step 5 — set copy status. 1 = available, 3 = lost, 4 = damaged
+            const newCopyStatus = lost ? 3 : damaged ? 4 : 1;
+            await db.query(`UPDATE Copy SET Copy_status = ? WHERE Copy_ID = ?`, [newCopyStatus, record.Copy_ID]);
 
 
             res.writeHead(200);
             res.end(JSON.stringify({
                 message: 'Item returned successfully',
                 late: isLate,
-                fee_charged: isLate ? (({ 1: 5.00, 2: 10.00, 3: 20.00 })[record.Item_type] || 5.00) : 0
+                damaged: !!damaged,
+                lost: !!lost,
+                fees_charged: {
+                    late: isLate ? (({ 1: 5.00, 2: 10.00, 3: 20.00 })[record.Item_type] || 5.00) : 0,
+                    damage: damaged ? (({ 1: 25.00, 2: 15.00, 3: 50.00 })[record.Item_type] || 25.00) : 0,
+                    loss: lost ? (({ 1: 30.00, 2: 20.00, 3: 100.00 })[record.Item_type] || 30.00) : 0
+                }
             }));
         } catch (err) {
             res.writeHead(500);
