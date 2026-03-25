@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
+import { apiFetch } from "../api";
 
 export default function MyBorrowsPage() {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ export default function MyBorrowsPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`/api/borrow/${personId}`, {
+      const response = await apiFetch(`/api/borrow/${personId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -40,7 +41,7 @@ export default function MyBorrowsPage() {
   const handleReturn = async (borrowedItemId, damaged, lost) => {
     setMessage("");
     try {
-      const response = await fetch("/api/borrow/return", {
+      const response = await apiFetch("/api/borrow/return", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
