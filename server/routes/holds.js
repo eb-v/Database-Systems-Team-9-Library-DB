@@ -207,6 +207,22 @@ async function cancelHold(req, res) {
             [hold.Copy_ID, hold.queue_status]
         );
 
+        // if the cancelled hold was first in line (status 2), promote the next person in queue
+        if (hold.hold_status === 2) {
+            const [nextHold] = await db.query(
+                `SELECT Hold_ID FROM HoldItem WHERE Copy_ID = ? AND hold_status = 1 AND queue_status = 0`,
+                [hold.Copy_ID]
+            );
+            if (nextHold.length > 0) {
+                const expiry = new Date();
+                expiry.setDate(expiry.getDate() + 2);
+                const formatDate = (d) => d.toISOString().split('T')[0];
+                await db.query(
+                    `UPDATE HoldItem SET hold_status = 2, expiry_date = ? WHERE Hold_ID = ?`,
+                    [formatDate(expiry), nextHold[0].Hold_ID]
+                );
+            }
+        }
 
         res.writeHead(200);
         res.end(JSON.stringify({ message: 'Hold cancelled successfully' }));
