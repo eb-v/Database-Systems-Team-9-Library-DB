@@ -19,6 +19,7 @@ export default function ViewAccountPage() {
       title: "Active Borrows",
       description: "See the items you currently have checked out.",
       icon: borrowIcon,
+      path: "/my-borrows",
     },
     {
       title: "Pay Fees",
