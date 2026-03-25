@@ -139,6 +139,24 @@ async function borrowItem(req, res) {
             // step 7 — update the copy status to 2 (checked out)
             await db.query(`UPDATE Copy SET Copy_status = 2 WHERE Copy_ID = ?`, [copy_id]);
 
+            // step 8 — fulfill any active hold this patron has on this item (regardless of which copy)
+            const [patronHoldOnItem] = await db.query(
+                `SELECT h.Hold_ID, h.Copy_ID, h.queue_status FROM HoldItem h
+                 JOIN Copy cp ON h.Copy_ID = cp.Copy_ID
+                 WHERE cp.Item_ID = ? AND h.Person_ID = ? AND h.hold_status IN (1, 2)`,
+                [item_id, person_id]
+            );
+            if (patronHoldOnItem.length > 0) {
+                const ph = patronHoldOnItem[0];
+                await db.query(`UPDATE HoldItem SET hold_status = 3 WHERE Hold_ID = ?`, [ph.Hold_ID]);
+                // shift queue for others behind this hold on that copy
+                await db.query(
+                    `UPDATE HoldItem SET queue_status = queue_status - 1
+                     WHERE Copy_ID = ? AND hold_status IN (1, 2) AND queue_status > ?`,
+                    [ph.Copy_ID, ph.queue_status]
+                );
+            }
+
             res.writeHead(201);
             res.end(JSON.stringify({
                 message: 'Item checked out successfully',
