@@ -14,6 +14,14 @@ export default function NavigationBar({ isStaff = false }) {
         Library Database
       </div>
 
+        {/* USER DASHBOARD BUTTON */}
+        <button
+          onClick={() => navigate("/customer")}
+          className="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-900"
+        >
+          User Dashboard
+        </button>
+
         {/* STAFF DASHBOARD BUTTON */}
         {isStaff && (
           <button

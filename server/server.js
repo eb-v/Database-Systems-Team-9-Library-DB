@@ -7,6 +7,7 @@ const borrow = require('./routes/borrow');
 const fees = require('./routes/fees');
 const holds = require('./routes/holds');
 const rooms = require('./routes/rooms');
+const users = require('./routes/users');
 const { verifyToken, requireRole, requireAdmin } = require('./middleware/auth');
 
 const server = http.createServer((req, res) => {
@@ -67,6 +68,14 @@ const server = http.createServer((req, res) => {
         verifyToken(req, res, () => {
             requireRole(1)(req, res, () => {
                 items.deleteCopy(req, res);
+            });
+        });
+    
+    // staff-only — look up a user and view summary info
+    } else if (req.method === 'GET' && req.url.startsWith('/api/users/lookup')) {
+        verifyToken(req, res, () => {
+            requireRole(1)(req, res, () => {
+                users.lookupUser(req, res);
             });
         });
 

@@ -1,30 +1,36 @@
 import NavigationBar from "../components/NavigationBar";
+import { Navigate, useNavigate } from "react-router-dom";
 import holdsIcon from "../assets/hold.png";
 import borrowIcon from "../assets/borrow.png";
 import feesIcon from "../assets/fee.png";
 import profileIcon from "../assets/user.png";
 
 export default function ViewAccountPage() {
+  const navigate = useNavigate();
   const accountCards = [
     {
       title: "My Holds",
       description: "View the items you currently have on hold.",
       icon: holdsIcon,
+      path: "/hold"
     },
     {
       title: "Active Borrows",
       description: "See the items you currently have checked out.",
       icon: borrowIcon,
+      path: "/return-borrow"
     },
     {
       title: "Pay Fees",
       description: "View and pay any outstanding fees on your account.",
       icon: feesIcon,
+      path: "/fees"
     },
     {
       title: "Personal Information",
       description: "View and update your personal account information.",
       icon: profileIcon,
+      path: "/rent-a-room"
     },
   ];
 
@@ -44,6 +50,7 @@ export default function ViewAccountPage() {
           {accountCards.map((card) => (
             <div
               key={card.title}
+              onClick={() => navigate(card.path)}
               className="relative bg-white rounded-xl shadow-md cursor-pointer transition hover:shadow-lg hover:scale-105 aspect-square p-3 flex flex-col items-center justify-center text-center overflow-hidden border border-transparent hover:border-green-800"
             >
               {/* hover overlay */}

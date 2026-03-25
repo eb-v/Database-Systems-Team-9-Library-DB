@@ -1,10 +1,61 @@
 import { useState } from "react";
 import NavigationBar from "../components/NavigationBar";
+import { useNavigate } from "react-router-dom";
+
+const getAccountStatusLabel = (status) => {
+  return Number(status) === 1 ? "Active" : "Inactive";
+};
+
+const getBorrowStatusLabel = (status) => {
+  return Number(status) === 1 ? "Good Standing" : "Restricted";
+};
 
 export default function UserLookupPage() {
-  const [searchType, setSearchType] = useState("Person ID");
+  const navigate = useNavigate();
+  const [searchType, setSearchType] = useState("personId");
   const [searchValue, setSearchValue] = useState("");
+  const [userRecord, setUserRecord] = useState(null);
+  const [summary, setSummary] = useState(null);
   const [message, setMessage] = useState("");
+
+  const token = sessionStorage.getItem("token");
+
+  const handleSearch = async () => {
+    setMessage("");
+    setUserRecord(null);
+    setSummary(null);
+
+    if (!searchValue.trim()) {
+      setMessage("Please enter a search value.");
+      return;
+    }
+
+    try {
+      const response = await fetch(
+        `http://localhost:3000/api/users/lookup?searchBy=${searchType}&value=${encodeURIComponent(searchValue)}`,
+        {
+          method: "GET",
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        }
+      );
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setMessage(data.error || "Failed to load user record.");
+        return;
+      }
+
+      setUserRecord(data.person);
+      setSummary(data.summary);
+      setMessage("User record loaded.");
+    } catch (error) {
+      console.error(error);
+      setMessage("Unable to connect to the server.");
+    }
+  };
 
   return (
     <div className="min-h-screen bg-gray-100">
@@ -19,7 +70,7 @@ export default function UserLookupPage() {
         </p>
 
         <div className="bg-white rounded-xl shadow-md p-6 space-y-8">
-          {/*search*/}
+          {/* SEARCH */}
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-green-900">
               Search User
@@ -34,9 +85,9 @@ export default function UserLookupPage() {
                 onChange={(e) => setSearchType(e.target.value)}
                 className="w-full border border-gray-300 rounded-lg px-4 py-3"
               >
-                <option>Person ID</option>
-                <option>Userame</option>
-                <option>Email</option>
+                <option value="personId">Person ID</option>
+                <option value="username">Username</option>
+                <option value="email">Email</option>
               </select>
             </div>
 
@@ -55,55 +106,109 @@ export default function UserLookupPage() {
 
             <button
               className="bg-green-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-900"
-              onClick={() => setMessage("User record loaded.")}
+              onClick={handleSearch}
             >
               Search
             </button>
           </div>
 
-          {/*user info*/}
+          {/* USER INFO */}
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-green-900">
               User Details
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <ReadOnlyField label="Username" value="jdoe123" />
-              <ReadOnlyField label="Person ID" value="102" />
-              <ReadOnlyField label="Name" value="Jane Doe" />
-              <ReadOnlyField label="Email" value="janedoe@email.com" />
-              <ReadOnlyField label="Account Status" value="Active" />
-              <ReadOnlyField label="Borrow Status" value="Good Standing" />
-            </div>
+            {userRecord ? (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <ReadOnlyField label="Username" value={userRecord.username} />
+                <ReadOnlyField label="Person ID" value={userRecord.Person_ID} />
+                <ReadOnlyField
+                  label="Name"
+                  value={`${userRecord.First_name} ${userRecord.Last_name}`}
+                />
+                <ReadOnlyField label="Email" value={userRecord.email} />
+                <ReadOnlyField
+                  label="Account Status"
+                  value={getAccountStatusLabel(userRecord.account_status)}
+                />
+                <ReadOnlyField
+                  label="Borrow Status"
+                  value={getBorrowStatusLabel(userRecord.borrow_status)}
+                />
+              </div>
+            ) : (
+              <p className="text-gray-500">No user loaded yet.</p>
+            )}
           </div>
 
-          {/*acc summary*/}
+          {/* ACCOUNT SUMMARY */}
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-green-900">
               Account Summary
             </h2>
 
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <SummaryCard
-                title="Borrowed Items"
-                value="2"
-                description="Items currently checked out"
-              />
-              <SummaryCard
-                title="Outstanding Fees"
-                value="$15.00"
-                description="Current amount owed"
-              />
-              <SummaryCard
-                title="Active Holds"
-                value="1"
-                description="Items currently on hold"
-              />
-            </div>
+            {summary ? (
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <SummaryCard
+                  title="Borrowed Items"
+                  value={summary.activeBorrows}
+                  description="Items currently checked out"
+                />
+                <SummaryCard
+                  title="Outstanding Fees"
+                  value={`$${summary.unpaidFeeTotal}`}
+                  description={`${summary.unpaidFeeCount} unpaid fee(s)`}
+                />
+                <SummaryCard
+                  title="Active Holds"
+                  value={summary.activeHolds}
+                  description="Items currently on hold"
+                />
+              </div>
+            ) : (
+              <p className="text-gray-500">No summary available yet.</p>
+            )}
           </div>
 
+          {userRecord && (
+          <div className="space-y-4">
+            <h2 className="text-xl font-semibold text-green-900">
+              Quick Actions
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <button
+                  onClick={() => navigate(`/holds?personId=${userRecord.Person_ID}&staffView=true`)}
+                  className="bg-blue-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-blue-800"
+                >
+                  View Holds
+                </button>
+
+                <button
+                  onClick={() => navigate(`/return-borrow?personId=${userRecord.Person_ID}&staffView=true`)}
+                  className="bg-green-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-900"
+                >
+                  View Borrowed Items
+                </button>
+
+                <button
+                  onClick={() => navigate(`/fees?personId=${userRecord.Person_ID}&staffView=true`)}
+                  className="bg-purple-700 text-white px-6 py-3 rounded-lg font-semibold hover:bg-purple-800"
+                >
+                  View Fees
+                </button>
+              </div>
+            </div>
+          )}
+
           {message && (
-            <p className="text-sm text-green-700 font-medium">{message}</p>
+            <p
+              className={`text-sm font-medium ${
+                message.includes("loaded") ? "text-green-700" : "text-red-700"
+              }`}
+            >
+              {message}
+            </p>
           )}
 
           <p className="text-sm text-gray-500 pt-2">
