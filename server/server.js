@@ -72,11 +72,10 @@ const server = http.createServer((req, res) => {
         });
     
     // staff-only — look up a user and view summary info
+    // any logged-in user can look up a person — patrons restricted to their own record
     } else if (req.method === 'GET' && req.url.startsWith('/api/users/lookup')) {
         verifyToken(req, res, () => {
-            requireRole(1)(req, res, () => {
-                users.lookupUser(req, res);
-            });
+            users.lookupUser(req, res);
         });
 
     // staff-only route — edit an existing item

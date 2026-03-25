@@ -5,6 +5,7 @@ import CatalogPage from "./pages/CatalogPage";
 import ItemDetailPage from "./pages/ItemDetailPage";
 import MyHoldsPage from "./pages/MyHoldsPage";
 import MyBorrowsPage from "./pages/MyBorrowsPage";
+import MyProfilePage from "./pages/MyProfilePage";
 import CustomerPage from "./pages/CustomerPage";
 import StaffPage from "./pages/StaffPage";
 import ManageItemsPage from "./pages/ManageItemsPage";
@@ -24,6 +25,7 @@ export default function App() {
       <Route path="/catalog/:id" element={<ItemDetailPage />} />
       <Route path="/my-holds" element={<MyHoldsPage />} />
       <Route path="/my-borrows" element={<MyBorrowsPage />} />
+      <Route path="/my-profile" element={<MyProfilePage />} />
       <Route path="/customer" element={<CustomerPage />} />
       <Route path="/staff" element={<StaffPage />} />
       <Route path="/manage-items" element={<ManageItemsPage />} />

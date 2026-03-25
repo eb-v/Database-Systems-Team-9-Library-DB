@@ -31,7 +31,7 @@ export default function ViewAccountPage() {
       title: "Personal Information",
       description: "View and update your personal account information.",
       icon: profileIcon,
-      path: "/rent-a-room"
+      path: "/my-profile"
     },
   ];
 
