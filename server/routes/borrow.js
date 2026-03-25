@@ -6,7 +6,7 @@ async function borrowItem(req, res) {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
         try {
-            const { person_id, copy_id } = JSON.parse(body);
+            const { person_id, item_id } = JSON.parse(body);
 
             // anyone can only borrow on their own behalf
             if (req.user.person_id !== parseInt(person_id)) {
@@ -14,21 +14,7 @@ async function borrowItem(req, res) {
                 return res.end(JSON.stringify({ error: 'You can only borrow on your own behalf' }));
             }
 
-            // step 1 — check the copy exists and is available (Copy_status 1 = available)
-            const [copyRows] = await db.query(
-                `SELECT Copy_status FROM Copy WHERE Copy_ID = ?`,
-                [copy_id]
-            );
-            if (copyRows.length === 0) {
-                res.writeHead(404);
-                return res.end(JSON.stringify({ error: 'Copy not found' }));
-            }
-            if (copyRows[0].Copy_status !== 1) {
-                res.writeHead(400);
-                return res.end(JSON.stringify({ error: 'Copy is not available' }));
-            }
-
-            // step 2 — check the patron exists and is allowed to borrow (borrow_status 1 = allowed)
+            // step 1 — check the patron exists and is allowed to borrow (borrow_status 1 = allowed)
             const [personRows] = await db.query(
                 `SELECT borrow_status FROM Person WHERE Person_ID = ?`,
                 [person_id]
@@ -41,6 +27,39 @@ async function borrowItem(req, res) {
                 res.writeHead(403);
                 return res.end(JSON.stringify({ error: 'Person is not allowed to borrow' }));
             }
+
+            // step 2 — find the best available copy. prefer copies with no active holds,
+            // then fall back to a copy where this patron is first in the hold queue
+            const [availableCopies] = await db.query(
+                `SELECT cp.Copy_ID,
+                    EXISTS(
+                        SELECT 1 FROM HoldItem h
+                        WHERE h.Copy_ID = cp.Copy_ID AND h.hold_status IN (1, 2)
+                    ) AS has_holds,
+                    (
+                        SELECT COUNT(*) FROM HoldItem h
+                        WHERE h.Copy_ID = cp.Copy_ID AND h.hold_status IN (1, 2)
+                        AND h.Person_ID = ? AND h.queue_status = 0
+                    ) AS patron_is_first
+                 FROM Copy cp
+                 WHERE cp.Item_ID = ? AND cp.Copy_status = 1
+                 ORDER BY has_holds ASC`,
+                [person_id, item_id]
+            );
+
+            if (availableCopies.length === 0) {
+                res.writeHead(400);
+                return res.end(JSON.stringify({ error: 'No copies available' }));
+            }
+
+            const selectedCopy = availableCopies.find(c => !c.has_holds) || availableCopies.find(c => c.patron_is_first);
+
+            if (!selectedCopy) {
+                res.writeHead(403);
+                return res.end(JSON.stringify({ error: 'All available copies have active holds. You must be first in line to check out.' }));
+            }
+
+            const copy_id = selectedCopy.Copy_ID;
 
             // step 3 — expire any holds on this copy that have passed their expiry date
             const today = new Date();

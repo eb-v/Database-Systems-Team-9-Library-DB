@@ -47,7 +47,7 @@ export default function ItemDetailPage() {
           "Content-Type": "application/json",
           Authorization: `Bearer ${token}`,
         },
-        body: JSON.stringify({ person_id: personId, copy_id: availableCopy.Copy_ID }),
+        body: JSON.stringify({ person_id: personId, item_id: item.Item_ID }),
       });
       const data = await response.json();
       if (!response.ok) {
