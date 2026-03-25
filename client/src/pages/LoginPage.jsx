@@ -18,7 +18,7 @@ export default function LoginPage() {
     }
 
     try {
-      const response = await fetch("http://localhost:3000/api/auth/login", {
+      const response = await fetch("/api/auth/login", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -38,6 +38,7 @@ export default function LoginPage() {
 
       sessionStorage.setItem("token", data.token);
       sessionStorage.setItem("userRole", data.role);
+      sessionStorage.setItem("personId", data.person_id);
 
       //role 1 = staff, role 2 = user
       if (data.role === 2){
@@ -105,6 +106,16 @@ export default function LoginPage() {
             {message}
           </p>
         )}
+
+        <p className="text-center text-sm text-gray-600 mt-4">
+          Don't have an account?{" "}
+          <span
+            onClick={() => navigate("/register")}
+            className="text-green-900 font-semibold cursor-pointer hover:underline"
+          >
+            Register
+          </span>
+        </p>
 
       </div>
     </div>

@@ -6,7 +6,7 @@ async function borrowItem(req, res) {
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
         try {
-            const { person_id, copy_id } = JSON.parse(body);
+            const { person_id, item_id } = JSON.parse(body);
 
             // anyone can only borrow on their own behalf
             if (req.user.person_id !== parseInt(person_id)) {
@@ -14,21 +14,7 @@ async function borrowItem(req, res) {
                 return res.end(JSON.stringify({ error: 'You can only borrow on your own behalf' }));
             }
 
-            // step 1 — check the copy exists and is available (Copy_status 1 = available)
-            const [copyRows] = await db.query(
-                `SELECT Copy_status FROM Copy WHERE Copy_ID = ?`,
-                [copy_id]
-            );
-            if (copyRows.length === 0) {
-                res.writeHead(404);
-                return res.end(JSON.stringify({ error: 'Copy not found' }));
-            }
-            if (copyRows[0].Copy_status !== 1) {
-                res.writeHead(400);
-                return res.end(JSON.stringify({ error: 'Copy is not available' }));
-            }
-
-            // step 2 — check the patron exists and is allowed to borrow (borrow_status 1 = allowed)
+            // step 1 — check the patron exists and is allowed to borrow (borrow_status 1 = allowed)
             const [personRows] = await db.query(
                 `SELECT borrow_status FROM Person WHERE Person_ID = ?`,
                 [person_id]
@@ -41,6 +27,39 @@ async function borrowItem(req, res) {
                 res.writeHead(403);
                 return res.end(JSON.stringify({ error: 'Person is not allowed to borrow' }));
             }
+
+            // step 2 — find the best available copy. prefer copies with no active holds,
+            // then fall back to a copy where this patron is first in the hold queue
+            const [availableCopies] = await db.query(
+                `SELECT cp.Copy_ID,
+                    EXISTS(
+                        SELECT 1 FROM HoldItem h
+                        WHERE h.Copy_ID = cp.Copy_ID AND h.hold_status IN (1, 2)
+                    ) AS has_holds,
+                    (
+                        SELECT COUNT(*) FROM HoldItem h
+                        WHERE h.Copy_ID = cp.Copy_ID AND h.hold_status IN (1, 2)
+                        AND h.Person_ID = ? AND h.queue_status = 0
+                    ) AS patron_is_first
+                 FROM Copy cp
+                 WHERE cp.Item_ID = ? AND cp.Copy_status = 1
+                 ORDER BY has_holds ASC`,
+                [person_id, item_id]
+            );
+
+            if (availableCopies.length === 0) {
+                res.writeHead(400);
+                return res.end(JSON.stringify({ error: 'No copies available' }));
+            }
+
+            const selectedCopy = availableCopies.find(c => !c.has_holds) || availableCopies.find(c => c.patron_is_first);
+
+            if (!selectedCopy) {
+                res.writeHead(403);
+                return res.end(JSON.stringify({ error: 'All available copies have active holds. You must be first in line to check out.' }));
+            }
+
+            const copy_id = selectedCopy.Copy_ID;
 
             // step 3 — expire any holds on this copy that have passed their expiry date
             const today = new Date();
@@ -119,6 +138,24 @@ async function borrowItem(req, res) {
 
             // step 7 — update the copy status to 2 (checked out)
             await db.query(`UPDATE Copy SET Copy_status = 2 WHERE Copy_ID = ?`, [copy_id]);
+
+            // step 8 — fulfill any active hold this patron has on this item (regardless of which copy)
+            const [patronHoldOnItem] = await db.query(
+                `SELECT h.Hold_ID, h.Copy_ID, h.queue_status FROM HoldItem h
+                 JOIN Copy cp ON h.Copy_ID = cp.Copy_ID
+                 WHERE cp.Item_ID = ? AND h.Person_ID = ? AND h.hold_status IN (1, 2)`,
+                [item_id, person_id]
+            );
+            if (patronHoldOnItem.length > 0) {
+                const ph = patronHoldOnItem[0];
+                await db.query(`UPDATE HoldItem SET hold_status = 3 WHERE Hold_ID = ?`, [ph.Hold_ID]);
+                // shift queue for others behind this hold on that copy
+                await db.query(
+                    `UPDATE HoldItem SET queue_status = queue_status - 1
+                     WHERE Copy_ID = ? AND hold_status IN (1, 2) AND queue_status > ?`,
+                    [ph.Copy_ID, ph.queue_status]
+                );
+            }
 
             res.writeHead(201);
             res.end(JSON.stringify({
@@ -259,7 +296,7 @@ async function getBorrowedItems(req, res) {
             return res.end(JSON.stringify({ error: 'Person not found' }));
         }
 
-        // get all borrowed items for this person — join Item so we can return the item name and type
+        // get the most recent borrow record per copy for this person
         const [rows] = await db.query(
             `SELECT
                 bi.BorrowedItem_ID, bi.borrow_date, bi.returnBy_date,
@@ -269,6 +306,11 @@ async function getBorrowedItems(req, res) {
              JOIN Copy cp ON bi.Copy_ID = cp.Copy_ID
              JOIN Item i ON cp.Item_ID = i.Item_ID
              WHERE bi.Person_ID = ?
+               AND bi.BorrowedItem_ID = (
+                 SELECT MAX(bi2.BorrowedItem_ID)
+                 FROM BorrowedItem bi2
+                 WHERE bi2.Copy_ID = bi.Copy_ID AND bi2.Person_ID = bi.Person_ID
+               )
              ORDER BY bi.borrow_date DESC`,
             [personId]
         );

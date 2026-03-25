@@ -13,7 +13,10 @@ export default function CustomerPage() {
   const [query, setQuery] = useState("");
 
   const handleSearch = () => {
-    console.log("Searching:", category, query);
+    const params = new URLSearchParams();
+    if (query.trim()) params.set("search", query.trim());
+    if (category !== "All") params.set("type", category === "Books" ? "1" : "2");
+    navigate(`/catalog?${params.toString()}`);
   };
 
   const customerCards = [

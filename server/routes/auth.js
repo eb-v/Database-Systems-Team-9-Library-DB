@@ -94,7 +94,7 @@ async function login(req, res) {
             );
 
             res.writeHead(200);
-            res.end(JSON.stringify({ token, role: person.role, staff_permissions }));
+            res.end(JSON.stringify({ token, role: person.role, staff_permissions, person_id: person.Person_ID }));
         } catch (err) {
             res.writeHead(500);
             res.end(JSON.stringify({ error: 'Login failed', details: err.message }));
