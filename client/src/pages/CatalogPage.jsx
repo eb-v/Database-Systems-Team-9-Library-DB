@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
+import { apiFetch } from "../api";
 
 export default function CatalogPage() {
   const [searchParams] = useSearchParams();
@@ -26,7 +27,7 @@ export default function CatalogPage() {
       if (categoryValue === "Books") params.set("type", "1");
       else if (categoryValue === "CDs") params.set("type", "2");
 
-      const response = await fetch(`/api/items?${params.toString()}`, {
+      const response = await apiFetch(`/api/items?${params.toString()}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
 

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
+import { apiFetch } from "../api";
 
 export default function ItemDetailPage() {
   const { id } = useParams();
@@ -17,7 +18,7 @@ export default function ItemDetailPage() {
   useEffect(() => {
     const fetchItem = async () => {
       try {
-        const response = await fetch(`/api/items/${id}`, {
+        const response = await apiFetch(`/api/items/${id}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
         const data = await response.json();
@@ -41,7 +42,7 @@ export default function ItemDetailPage() {
   const handleBorrow = async () => {
     setMessage("");
     try {
-      const response = await fetch("/api/borrow", {
+      const response = await apiFetch("/api/borrow", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
@@ -63,7 +64,7 @@ export default function ItemDetailPage() {
   const handleHold = async () => {
     setMessage("");
     try {
-      const response = await fetch("/api/holds", {
+      const response = await apiFetch("/api/holds", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

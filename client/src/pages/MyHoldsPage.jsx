@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
+import { apiFetch } from "../api";
 
 export default function MyHoldsPage() {
   const navigate = useNavigate();
@@ -16,7 +17,7 @@ export default function MyHoldsPage() {
     setLoading(true);
     setError("");
     try {
-      const response = await fetch(`/api/holds/${personId}`, {
+      const response = await apiFetch(`/api/holds/${personId}`, {
         headers: { Authorization: `Bearer ${token}` },
       });
       const data = await response.json();
@@ -40,7 +41,7 @@ export default function MyHoldsPage() {
   const handleCancel = async (holdId) => {
     setMessage("");
     try {
-      const response = await fetch(`/api/holds/${holdId}`, {
+      const response = await apiFetch(`/api/holds/${holdId}`, {
         method: "DELETE",
         headers: { Authorization: `Bearer ${token}` },
       });
