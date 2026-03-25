@@ -11,6 +11,14 @@ async function lookupUser(req, res) {
             return res.end(JSON.stringify({ error: 'searchBy and value are required' }));
         }
 
+        // patrons can only look up by personId and only their own
+        if (req.user.role === 2) {
+            if (searchBy !== 'personId' || parseInt(value) !== req.user.person_id) {
+                res.writeHead(403);
+                return res.end(JSON.stringify({ error: 'Access denied' }));
+            }
+        }
+
         let query = '';
         let params = [value];
 
@@ -53,7 +61,7 @@ async function lookupUser(req, res) {
             `SELECT COUNT(*) AS activeBorrows
              FROM BorrowedItem bi
              JOIN Copy cp ON bi.Copy_ID = cp.Copy_ID
-             WHERE bi.Person_ID = ? AND cp.Copy_status = 0`,
+             WHERE bi.Person_ID = ? AND cp.Copy_status = 2`,
             [person.Person_ID]
         );
 

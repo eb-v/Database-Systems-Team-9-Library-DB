@@ -1,11 +1,12 @@
-import { Link, useNavigate } from "react-router-dom";
+import { useNavigate } from "react-router-dom";
 
-export default function NavigationBar({ isStaff = false }) {
+export default function NavigationBar() {
   const navigate = useNavigate();
+  const isStaff = sessionStorage.getItem("userType") === "staff";
 
   return (
     <nav className="bg-white shadow-md px-12 py-4 flex justify-between items-center">
-      
+
       {/* LEFT: Logo */}
       <div
         onClick={() => navigate(isStaff ? "/staff" : "/customer")}
@@ -14,15 +15,8 @@ export default function NavigationBar({ isStaff = false }) {
         Library Database
       </div>
 
-        {/* USER DASHBOARD BUTTON */}
-        <button
-          onClick={() => navigate("/customer")}
-          className="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-900"
-        >
-          User Dashboard
-        </button>
-
-        {/* STAFF DASHBOARD BUTTON */}
+      <div className="flex items-center gap-3">
+        {/* STAFF DASHBOARD BUTTON — only for staff */}
         {isStaff && (
           <button
             onClick={() => navigate("/staff")}
@@ -35,14 +29,14 @@ export default function NavigationBar({ isStaff = false }) {
         {/* LOG OUT */}
         <button
           onClick={() => {
-            sessionStorage.removeItem("userType");
-            sessionStorage.removeItem("staffRole");
+            sessionStorage.clear();
             navigate("/login");
           }}
           className="bg-red-800 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-900"
         >
           Log Out
         </button>
+      </div>
     </nav>
   );
 }

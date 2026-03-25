@@ -5,6 +5,7 @@ import CatalogPage from "./pages/CatalogPage";
 import ItemDetailPage from "./pages/ItemDetailPage";
 import MyHoldsPage from "./pages/MyHoldsPage";
 import MyBorrowsPage from "./pages/MyBorrowsPage";
+import MyProfilePage from "./pages/MyProfilePage";
 import CustomerPage from "./pages/CustomerPage";
 import StaffPage from "./pages/StaffPage";
 import ManageItemsPage from "./pages/ManageItemsPage";
@@ -13,6 +14,8 @@ import UserLookupPage from "./pages/UserLookupPage";
 import ReturnsBorrowsPage from "./pages/ReturnsBorrowsPage";
 import HoldsPage from "./pages/HoldsPage";
 import ViewAccountPage from "./pages/ViewAccountPage";
+import RentARoomPage from "./pages/RentARoomPage";
+import RentADevicePage from "./pages/RentADevicePage";
 
 export default function App() {
   return (
@@ -24,6 +27,7 @@ export default function App() {
       <Route path="/catalog/:id" element={<ItemDetailPage />} />
       <Route path="/my-holds" element={<MyHoldsPage />} />
       <Route path="/my-borrows" element={<MyBorrowsPage />} />
+      <Route path="/my-profile" element={<MyProfilePage />} />
       <Route path="/customer" element={<CustomerPage />} />
       <Route path="/staff" element={<StaffPage />} />
       <Route path="/manage-items" element={<ManageItemsPage />} />
@@ -32,6 +36,8 @@ export default function App() {
       <Route path="/return-borrow" element={<ReturnsBorrowsPage />} />
       <Route path="/holds" element={<HoldsPage />} />
       <Route path="/view-account" element={<ViewAccountPage />} />
+      <Route path="/rent-a-room" element={<RentARoomPage />} />
+      <Route path="/rent-a-device" element={<RentADevicePage />} />
     </Routes>
   );
 }

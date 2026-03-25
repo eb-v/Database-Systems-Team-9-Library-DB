@@ -1,6 +1,7 @@
 import { useState } from "react";
 import NavigationBar from "../components/NavigationBar";
 import { useNavigate } from "react-router-dom";
+import { apiFetch } from "../api";
 
 const getAccountStatusLabel = (status) => {
   return Number(status) === 1 ? "Active" : "Inactive";
@@ -31,13 +32,10 @@ export default function UserLookupPage() {
     }
 
     try {
-      const response = await fetch(
-        `http://localhost:3000/api/users/lookup?searchBy=${searchType}&value=${encodeURIComponent(searchValue)}`,
+      const response = await apiFetch(
+        `/api/users/lookup?searchBy=${searchType}&value=${encodeURIComponent(searchValue)}`,
         {
-          method: "GET",
-          headers: {
-            Authorization: `Bearer ${token}`,
-          },
+          headers: { Authorization: `Bearer ${token}` },
         }
       );
 

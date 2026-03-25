@@ -8,6 +8,7 @@ import deviceIcon from "../assets/device.png";
 
 export default function CustomerPage() {
   const navigate = useNavigate();
+  const isStaff = sessionStorage.getItem("userType") === "staff";
 
   const [category, setCategory] = useState("All");
   const [query, setQuery] = useState("");
@@ -36,7 +37,7 @@ export default function CustomerPage() {
       title: "View My Account",
       description: "Manage your borrowed items and holds.",
       icon: userIcon,
-      path: "/view-account"
+      path: isStaff ? "/staff" : "/view-account"
     },
   ];
 
