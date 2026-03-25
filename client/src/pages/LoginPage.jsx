@@ -47,9 +47,14 @@ export default function LoginPage() {
         sessionStorage.removeItem("staffRole");
         navigate("/customer");
       } else if (data.role === 1){
-        sessionStorage.setItem("userType", "staff");
         sessionStorage.setItem("staffRole", String(data.staff_permissions));
-        navigate("/staff");
+        if (data.staff_permissions === 2) {
+          sessionStorage.setItem("userType", "admin");
+          navigate("/admin");
+        } else {
+          sessionStorage.setItem("userType", "staff");
+          navigate("/staff");
+        }
       } else {
         setMessage("Unable to determine account role.");
       }
