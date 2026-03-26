@@ -77,7 +77,7 @@ export default function CustomerPage() {
                 <option>CDs</option>
               </select>
               
-              {/*text inside search bard*/}
+              {/*text inside search card*/}
               <input
                 type="text"
                 placeholder="Search the library..."
@@ -100,7 +100,7 @@ export default function CustomerPage() {
 
       {/*main grid*/}
       <section className="max-w-6xl mx-auto px-6 py-10">
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {customerCards.map((card) => (
             <div
               key={card.title}
