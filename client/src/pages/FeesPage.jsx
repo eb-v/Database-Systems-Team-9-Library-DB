@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 import { useLocation } from "react-router-dom";
 
@@ -47,6 +48,11 @@ export default function PayFeesPage() {
   const [feeTypeFilter, setFeeTypeFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("1");
   const [message, setMessage] = useState("");
+
+  const navigate = useNavigate();
+  const userType = sessionStorage.getItem("userType");
+  const isStaff = userType === "staff";
+  const isAdmin = userType === "admin";
 
   const location = useLocation();
   const params = new URLSearchParams(location.search);
@@ -161,20 +167,32 @@ export default function PayFeesPage() {
       <NavigationBar />
 
       <div className="max-w-6xl mx-auto px-6 py-10">
+        
+        {/*return to dashboard button*/}
+        <button
+          onClick={() => navigate(isAdmin ? "/admin" : isStaff ? "/staff" : "/view-account")}
+          className="text-sm text-green-900 font-semibold hover:underline mb-6 inline-block"
+        >
+          ← Back
+        </button>
+
+        {/*title*/}
         <h1 className="text-3xl font-bold text-green-900 mb-2">
           Pay Fees
         </h1>
+
+        {/*description*/}
         <p className="text-gray-600 mb-8">
           View your outstanding fees and select one to pay.
         </p>
 
         <div className="bg-white rounded-xl shadow-md p-6 space-y-8">
-          {/* USER INFO */}
+
+          {/*user info part*/}
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-green-900">
               User Information
             </h2>
-
             <div>
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 User ID
@@ -188,7 +206,7 @@ export default function PayFeesPage() {
             </div>
           </div>
 
-          {/* FILTERS */}
+          {/*filtering part*/}
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-green-900">
               Filter Fees
@@ -228,7 +246,7 @@ export default function PayFeesPage() {
             </div>
           </div>
 
-          {/* FEES TABLE */}
+          {/*my fees table*/}
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-green-900">
               My Fees
@@ -289,7 +307,7 @@ export default function PayFeesPage() {
             )}
           </div>
 
-          {/* PAYMENT SECTION */}
+          {/*payment section*/}
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-green-900">
               Payment Information

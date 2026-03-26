@@ -7,6 +7,10 @@ export default function CatalogPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
+  const userType = sessionStorage.getItem("userType");
+  const isStaff = userType === "staff";
+  const isAdmin = userType === "admin";
+
   const [category, setCategory] = useState(
     searchParams.get("type") === "1" ? "Books" :
     searchParams.get("type") === "2" ? "CDs" : "All"
@@ -94,7 +98,19 @@ export default function CatalogPage() {
             >
               Search
             </button>
+
           </div>
+        </div>
+      </div>
+
+      <div className="py-2 px-2">
+        <div className="max-w-4xl mx-auto">
+          <button
+              onClick={() => navigate(isAdmin ? "/admin" : isStaff ? "/staff" : "/view-account")}
+              className="text-sm text-green-900 font-semibold hover:underline inline-block text-center"
+            >
+              ← Back to Dashboard
+          </button>
         </div>
       </div>
 
