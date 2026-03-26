@@ -1,26 +1,41 @@
 import { useState } from "react";
+import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 
 export default function ManageItemsPage() {
+  const navigate = useNavigate();
   const [action, setAction] = useState("Add");
   const [itemType, setItemType] = useState("Book");
+  const userType = sessionStorage.getItem("userType");
+  const isStaff = userType === "staff";
+  const isAdmin = userType === "admin";
 
   return (
     <div className="min-h-screen bg-gray-100">
       <NavigationBar isStaff={true}/>
 
       <div className="max-w-4xl mx-auto px-6 py-10">
+        {/*back button*/}
+        <button
+          onClick={() => navigate(isAdmin ? "/admin" : isStaff ? "/staff" : "/view-account")}
+          className="text-sm text-green-900 font-semibold hover:underline mb-6 inline-block"
+        >
+          ← Back
+        </button>
+
+        {/*title*/}
         <h1 className="text-3xl font-bold text-green-900 mb-2">
           Manage Library Items
         </h1>
+        {/*description*/}
         <p className="text-gray-600 mb-8">
           Add or remove books, CDs, and devices from the library system.
         </p>
 
         <div className="bg-white rounded-xl shadow-md p-6">
-          {/* Top controls */}
           <div className="grid grid-cols-1 md:grid-cols-2 gap-4 mb-8">
             <div>
+              {/*top dropdowns*/}
               <label className="block text-sm font-semibold text-gray-700 mb-2">
                 Action
               </label>
@@ -50,7 +65,7 @@ export default function ManageItemsPage() {
             </div>
           </div>
 
-          {/* ADD BOOK */}
+          {/*add book form*/}
           {action === "Add" && itemType === "Book" && (
             <div className="space-y-4">
               <h2 className="text-xl font-semibold text-green-900 mb-2">
@@ -142,7 +157,7 @@ export default function ManageItemsPage() {
             </div>
           )}
 
-          {/* ADD CD */}
+          {/*add cd form */}
           {action === "Add" && itemType === "CD" && (
             <div className="space-y-4">
               <h2 className="text-xl font-semibold text-green-900 mb-2">
@@ -229,7 +244,7 @@ export default function ManageItemsPage() {
             </div>
           )}
 
-          {/* ADD DEVICE */}
+          {/*add device form*/}
           {action === "Add" && itemType === "Device" && (
             <div className="space-y-4">
               <h2 className="text-xl font-semibold text-green-900 mb-2">
