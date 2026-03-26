@@ -18,6 +18,9 @@ export default function UserLookupPage() {
   const [userRecord, setUserRecord] = useState(null);
   const [summary, setSummary] = useState(null);
   const [message, setMessage] = useState("");
+  const userType = sessionStorage.getItem("userType");
+  const isStaff = userType === "staff";
+  const isAdmin = userType === "admin";
 
   const token = sessionStorage.getItem("token");
 
@@ -60,15 +63,25 @@ export default function UserLookupPage() {
       <NavigationBar isStaff={true} />
 
       <div className="max-w-5xl mx-auto px-6 py-10">
+        {/*back button*/}
+        <button
+          onClick={() => navigate(isAdmin ? "/admin" : isStaff ? "/staff" : "/view-account")}
+          className="text-sm text-green-900 font-semibold hover:underline mb-6 inline-block"
+        >
+          ← Back
+        </button>
+
+        {/*title*/}
         <h1 className="text-3xl font-bold text-green-900 mb-2">
           User Lookup
         </h1>
+        {/*description*/}
         <p className="text-gray-600 mb-8">
           Search for a library guest and view their current borrowing and fee information.
         </p>
 
         <div className="bg-white rounded-xl shadow-md p-6 space-y-8">
-          {/* SEARCH */}
+          {/*search card*/}
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-green-900">
               Search User
@@ -110,7 +123,7 @@ export default function UserLookupPage() {
             </button>
           </div>
 
-          {/* USER INFO */}
+          {/*user summary section*/}
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-green-900">
               User Details
@@ -139,7 +152,7 @@ export default function UserLookupPage() {
             )}
           </div>
 
-          {/* ACCOUNT SUMMARY */}
+          {/*account summary section*/}
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-green-900">
               Account Summary
