@@ -8,13 +8,14 @@ import holdIcon from "../assets/hold.png";
 import itemIcon from "../assets/item.png";
 import roomIcon from "../assets/room.png";
 import deviceIcon from "../assets/device.png";
+import catalogIcon from "../assets/catalog.png";
 
 const myAccountCards = [
   {
     title: "Catalog",
     description: "Browse and borrow library items.",
-    icon: borrowIcon,
-    path: "/customer",
+    icon: catalogIcon,
+    path: "/catalog",
   },
   {
     title: "Rent a Device",
@@ -57,7 +58,7 @@ const myAccountCards = [
 const staffToolCards = [
   {
     title: "User Lookup",
-    description: "Search for a patron's profile.",
+    description: "Search for a patron's profile to process a fee or checkout.",
     icon: userIcon,
     path: "/user-lookup",
   },
