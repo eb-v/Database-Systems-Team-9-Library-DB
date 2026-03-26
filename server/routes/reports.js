@@ -32,7 +32,7 @@ const db = require('../db');
                AS available_copies,
                   COUNT(DISTINCT h.Hold_ID)
                 AS active_holds,
-                  ROUND(COUNT(DISTINCT bi.BorrowedItem_ID) / NULLIF(COUNT(DISTINCTcp.Copy_ID), 0), 2)   AS demand_ratio,
+                  ROUND(COUNT(DISTINCT bi.BorrowedItem_ID) / NULLIF(COUNT(DISTINCT cp.Copy_ID), 0), 2)   AS demand_ratio,
                   ROUND(COUNT(DISTINCT bi.BorrowedItem_ID) / NULLIF(TIMESTAMPDIFF(MONTH, MIN(cp.date_added), CURDATE()), 0), 2) AS borrowing_rate
               FROM Item i
               LEFT JOIN Book b        ON i.Item_ID = b.Item_ID
