@@ -1,10 +1,4 @@
-SELECT
-    f.Person_ID,
-    p.First_name,
-    p.Last_name,
-    p.role,
-   COUNT(f.Fine_ID) AS unpaid_fee_count,
-   SUM(f.fee_amount) AS unpaid_total
+SELECT f.Person_ID, p.First_name, p.Last_name, p.role, COUNT(f.Fine_ID) AS unpaid_fee_count, SUM(f.fee_amount) AS unpaid_total
 FROM feeowed f
 LEFT JOIN person p ON f.Person_ID = p.Person_ID -- link a person to the feesowed
 LEFT JOIN feepayment fp ON f.Fine_ID = fp.Fine_ID -- link that person to their fine

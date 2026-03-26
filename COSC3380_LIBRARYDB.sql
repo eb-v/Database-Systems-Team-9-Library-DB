@@ -19,6 +19,7 @@ CREATE TABLE IF NOT EXISTS Book (
   year_published    DATE,
   Book_damage_fine  DECIMAL(10,2),
   Book_loss_fine    DECIMAL(10,2),
+  genre             VARCHAR(50),
   FOREIGN KEY (Item_ID) REFERENCES Item(Item_ID)
 );
 
@@ -29,6 +30,7 @@ CREATE TABLE IF NOT EXISTS CD (
   release_date    DATE,
   CD_damage_fine  DECIMAL(10,2),
   CD_loss_fine    DECIMAL(10,2),
+  genre             VARCHAR(50),
   FOREIGN KEY (Item_ID) REFERENCES Item(Item_ID)
 );
 
@@ -46,6 +48,7 @@ CREATE TABLE IF NOT EXISTS Copy (
   Copy_ID      INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
   Item_ID      INT NOT NULL,
   Copy_status  SMALLINT,
+  date_added   DATE DEFAULT (CURDATE()),
   FOREIGN KEY (Item_ID) REFERENCES Item(Item_ID)
 );
 

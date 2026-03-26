@@ -9,6 +9,8 @@ const holds = require('./routes/holds');
 const rooms = require('./routes/rooms');
 const users = require('./routes/users');
 const staff = require('./routes/staff');
+const reports = require('./routes/reports');
+
 const { verifyToken, requireRole, requireAdmin } = require('./middleware/auth');
 
 const server = http.createServer((req, res) => {
@@ -236,6 +238,13 @@ const server = http.createServer((req, res) => {
         verifyToken(req, res, () => {
             requireAdmin(req, res, () => {
                 staff.updateStaffPermissions(req, res);
+            });
+        });
+
+    } else if (req.method === 'GET' && req.url.startsWith('/api/reports/popularity')) {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                reports.getPopularityReport(req, res);
             });
         });
 

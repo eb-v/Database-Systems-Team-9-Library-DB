@@ -21,7 +21,7 @@ async function getPopularityReport(req, res) {
     }
 }
 
-async function getPopularityReport(req, res) {
+async function getFinesReport(req, res) {
     try {
         const [rows] = await db.query(
             `SELECT f.Person_ID,  p.First_name, p.Last_name, p.role,
@@ -43,4 +43,4 @@ async function getPopularityReport(req, res) {
     }
 }
 
-module.exports = { getPopularityReport };
+module.exports = { getPopularityReport, getFinesReport };
