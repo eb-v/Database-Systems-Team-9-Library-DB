@@ -8,6 +8,7 @@ const fees = require('./routes/fees');
 const holds = require('./routes/holds');
 const rooms = require('./routes/rooms');
 const users = require('./routes/users');
+const staff = require('./routes/staff');
 const { verifyToken, requireRole, requireAdmin } = require('./middleware/auth');
 
 const server = http.createServer((req, res) => {
@@ -219,6 +220,22 @@ const server = http.createServer((req, res) => {
         verifyToken(req, res, () => {
             requireAdmin(req, res, () => {
                 auth.registerStaff(req, res);
+            });
+        });
+
+    // admin-only — view all staff members
+    } else if (req.method === 'GET' && req.url === '/api/staff') {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                staff.getAllStaff(req, res);
+            });
+        });
+
+    // admin-only — update a staff member's permissions
+    } else if (req.method === 'PUT' && req.url.startsWith('/api/staff/')) {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                staff.updateStaffPermissions(req, res);
             });
         });
 

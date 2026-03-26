@@ -2,21 +2,32 @@ import { useNavigate } from "react-router-dom";
 
 export default function NavigationBar() {
   const navigate = useNavigate();
-  const isStaff = sessionStorage.getItem("userType") === "staff";
+  const userType = sessionStorage.getItem("userType");
+  const isStaff = userType === "staff";
+  const isAdmin = userType === "admin";
+
+  const homeRoute = isAdmin ? "/admin" : isStaff ? "/staff" : "/customer";
 
   return (
     <nav className="bg-white shadow-md px-12 py-4 flex justify-between items-center">
 
       {/* LEFT: Logo */}
       <div
-        onClick={() => navigate(isStaff ? "/staff" : "/customer")}
+        onClick={() => navigate(homeRoute)}
         className="text-2xl font-bold text-green-900 cursor-pointer"
       >
         Library Database
       </div>
 
       <div className="flex items-center gap-3">
-        {/* STAFF DASHBOARD BUTTON — only for staff */}
+        {isAdmin && (
+          <button
+            onClick={() => navigate("/admin")}
+            className="bg-gray-800 text-white px-4 py-2 rounded-lg text-sm font-semibold hover:bg-gray-900"
+          >
+            Admin Dashboard
+          </button>
+        )}
         {isStaff && (
           <button
             onClick={() => navigate("/staff")}

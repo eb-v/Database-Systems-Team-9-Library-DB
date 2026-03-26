@@ -9,19 +9,15 @@ import holdIcon from "../assets/hold.png";
 import itemIcon from "../assets/item.png";
 import roomIcon from "../assets/room.png";
 import deviceIcon from "../assets/device.png";
-import catalogIcon from "../assets/catalog.png";
+import staffIcon from "../assets/staff.png";
+import reportIcon from "../assets/report.png";
 
 const myAccountCards = [
   {
     title: "Catalog",
     description: "Browse and borrow library items.",
-<<<<<<< HEAD
-    icon: catalogIcon,
-    path: "/catalog",
-=======
     icon: catalogueIcon,
     path: "/customer",
->>>>>>> origin/main
   },
   {
     title: "Rent a Device",
@@ -61,10 +57,10 @@ const myAccountCards = [
   },
 ];
 
-const staffToolCards = [
+const adminToolCards = [
   {
     title: "User Lookup",
-    description: "Search for a patron's profile to process a fee or checkout.",
+    description: "Search for a patron's profile.",
     icon: userIcon,
     path: "/user-lookup",
   },
@@ -74,13 +70,25 @@ const staffToolCards = [
     icon: itemIcon,
     path: "/manage-items",
   },
+  {
+    title: "Manage Staff",
+    description: "Register and manage staff accounts.",
+    icon: staffIcon,
+    path: "/manage-staff",
+  },
+  {
+    title: "Reports",
+    description: "View system reports and analytics.",
+    icon: reportIcon,
+    path: "/reports",
+  },
 ];
 
-export default function StaffPage() {
+export default function AdminPage() {
   const navigate = useNavigate();
   const userType = sessionStorage.getItem("userType");
 
-  if (userType !== "staff") {
+  if (userType !== "admin") {
     return <Navigate to="/login" replace />;
   }
 
@@ -91,7 +99,7 @@ export default function StaffPage() {
       <div className="max-w-6xl mx-auto px-6 py-10 space-y-12">
 
         <section>
-          <h1 className="text-3xl font-bold text-green-900 mb-1">Staff Dashboard</h1>
+          <h1 className="text-3xl font-bold text-green-900 mb-1">Admin Dashboard</h1>
           <h2 className="text-lg font-semibold text-gray-700 mb-4">My Account</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
             {myAccountCards.map((card) => (
@@ -101,9 +109,9 @@ export default function StaffPage() {
         </section>
 
         <section>
-          <h2 className="text-lg font-semibold text-gray-700 mb-4">Staff Tools</h2>
+          <h2 className="text-lg font-semibold text-gray-700 mb-4">Admin Tools</h2>
           <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-            {staffToolCards.map((card) => (
+            {adminToolCards.map((card) => (
               <DashboardCard key={card.title} card={card} onClick={() => navigate(card.path)} />
             ))}
           </div>

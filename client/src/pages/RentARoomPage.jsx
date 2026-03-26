@@ -15,7 +15,9 @@ export default function RentARoomPage() {
 
   const token = sessionStorage.getItem("token");
   const personId = sessionStorage.getItem("personId");
-  const isStaff = sessionStorage.getItem("userType") === "staff";
+  const userType = sessionStorage.getItem("userType");
+  const isStaff = userType === "staff";
+  const isAdmin = userType === "admin";
 
   const fetchReservations = async () => {
     setLoading(true);
@@ -105,7 +107,7 @@ export default function RentARoomPage() {
 
       <div className="max-w-3xl mx-auto px-6 py-10">
         <button
-          onClick={() => navigate(isStaff ? "/staff" : "/customer")}
+          onClick={() => navigate(isAdmin ? "/admin" : isStaff ? "/staff" : "/customer")}
           className="text-sm text-green-900 font-semibold hover:underline mb-6 inline-block"
         >
           ← Back

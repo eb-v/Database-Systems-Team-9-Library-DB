@@ -25,7 +25,7 @@ async function borrowItem(req, res) {
             }
             if (personRows[0].borrow_status !== 1) {
                 res.writeHead(403);
-                return res.end(JSON.stringify({ error: 'Person is not allowed to borrow' }));
+                return res.end(JSON.stringify({ error: 'Borrowing is restricted due to outstanding fees. Please pay your fees to restore borrowing access.' }));
             }
 
             // step 2 — find the best available copy. prefer copies with no active holds,
