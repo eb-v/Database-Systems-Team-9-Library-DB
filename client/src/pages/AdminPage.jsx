@@ -17,7 +17,7 @@ const myAccountCards = [
     title: "Catalog",
     description: "Browse and borrow library items.",
     icon: catalogueIcon,
-    path: "/customer",
+    path: "/catalog",
   },
   {
     title: "Rent a Device",
