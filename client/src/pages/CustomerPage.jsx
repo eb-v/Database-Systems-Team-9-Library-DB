@@ -25,7 +25,7 @@ export default function CustomerPage() {
   const customerCards = [
     {
       title: "Rent a Device",
-      description: "Borrow laptops, tablets, and more.",
+      description: "Rent laptops, tablets, and other devices.",
       icon: deviceIcon,
       path: "/rent-a-device"
     },
@@ -37,7 +37,7 @@ export default function CustomerPage() {
     },
     {
       title: "View My Account",
-      description: "Manage your borrowed items and holds.",
+      description: "View account information, borrowed items and holds.",
       icon: userIcon,
       path: isAdmin ? "/admin" : isStaff ? "/staff" : "/view-account"
     },
@@ -105,7 +105,7 @@ export default function CustomerPage() {
             <div
               key={card.title}
               onClick={() => navigate(card.path)}
-              className="relative bg-white rounded-xl shadow-md cursor-pointer transition hover:shadow-lg hover:scale-105 aspect-square p-4  mx-auto flex flex-col items-center justify-center text-center overflow-hidden border border-transparent"
+              className="relative bg-white rounded-xl shadow-md cursor-pointer transition hover:shadow-lg hover:scale-105 aspect-square p-3  mx-auto flex flex-col items-center justify-center text-center overflow-hidden border border-transparent hover:border-green-800"
             >
               {/* dark overlay on hover */}
               <div className="absolute inset-0 bg-black opacity-0 hover:opacity-5 transition"></div>

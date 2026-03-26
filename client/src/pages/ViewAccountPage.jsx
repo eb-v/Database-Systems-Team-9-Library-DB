@@ -7,6 +7,10 @@ import profileIcon from "../assets/user.png";
 
 export default function ViewAccountPage() {
   const navigate = useNavigate();
+
+  const userType = sessionStorage.getItem("userType");
+  const isStaff = userType === "staff";
+  const isAdmin = userType === "admin";
   
   const accountCards = [
     {
@@ -40,6 +44,13 @@ export default function ViewAccountPage() {
       <NavigationBar />
 
       <div className="max-w-6xl mx-auto px-6 py-10">
+        <button
+          onClick={() => navigate(isAdmin ? "/admin" : isStaff ? "/staff" : "/customer")}
+          className="text-sm text-green-900 font-semibold hover:underline mb-6 inline-block"
+        >
+          ← Back
+        </button>
+        
         <h1 className="text-3xl font-bold text-green-900 mb-2">
           My Account
         </h1>

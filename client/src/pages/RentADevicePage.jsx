@@ -119,7 +119,7 @@ export default function RentADevicePage() {
         </button>
 
         <h1 className="text-3xl font-bold text-green-900 mb-2">Rent a Device</h1>
-        <p className="text-gray-600 mb-8">Borrow laptops, tablets, and other devices.</p>
+        <p className="text-gray-600 mb-8">Rent laptops, tablets, and other devices.</p>
 
         {loading && <p className="text-gray-600">Loading...</p>}
         {error && <p className="text-red-600">{error}</p>}

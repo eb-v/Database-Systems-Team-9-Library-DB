@@ -11,7 +11,7 @@ export default function NavigationBar() {
   return (
     <nav className="bg-white shadow-md px-12 py-4 flex justify-between items-center">
 
-      {/* LEFT: Logo */}
+      {/*library logo in the right*/}
       <div
         onClick={() => navigate(homeRoute)}
         className="text-2xl font-bold text-green-900 cursor-pointer"
@@ -19,6 +19,7 @@ export default function NavigationBar() {
         Library Database
       </div>
 
+      {/*admin dashboard button*/}
       <div className="flex items-center gap-3">
         {isAdmin && (
           <button
@@ -28,6 +29,8 @@ export default function NavigationBar() {
             Admin Dashboard
           </button>
         )}
+        
+        {/*staff dashboard button*/}
         {isStaff && (
           <button
             onClick={() => navigate("/staff")}
@@ -37,7 +40,7 @@ export default function NavigationBar() {
           </button>
         )}
 
-        {/* LOG OUT */}
+        {/*log out button */}
         <button
           onClick={() => {
             sessionStorage.clear();
@@ -45,7 +48,7 @@ export default function NavigationBar() {
           }}
           className="bg-red-800 text-white px-5 py-2 rounded-lg text-sm font-semibold hover:bg-red-900"
         >
-          Log Out
+          Log Out ➜]
         </button>
       </div>
     </nav>
