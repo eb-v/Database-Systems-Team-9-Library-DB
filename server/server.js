@@ -248,6 +248,12 @@ const server = http.createServer((req, res) => {
             });
         });
 
+    } else if (req.method === 'GET' && req.url.startsWith('/api/reports/fees')) {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                reports.getFinesReport(req, res);
+            });
+        }); 
     } else {
         res.writeHead(404);
         res.end(JSON.stringify({ error: 'Route not found' }));

@@ -84,6 +84,24 @@ async function getPopularityReport(req, res) {
 
 async function getFinesReport(req, res) {
     try {
+        console.log("fees report hit:", req.url);
+
+        const { searchParams } = new URL(req.url, 'http://localhost');
+        const role = searchParams.get('role');
+        const minTotal = searchParams.get('minTotal');
+
+        const limitRaw = parseInt(searchParams.get('limit'), 10);
+        const limit = Number.isInteger(limitRaw) && limitRaw > 0 ? limitRaw : 25;
+
+        const validSorts = [
+            'unpaid_total',
+            'unpaid_fee_count',
+            'oldest_unpaid_date'
+        ];
+
+        const sort = searchParams.get('sort');
+        const orderBy = validSorts.includes(sort) ? sort : 'unpaid_total';
+
         const [rows] = await db.query(
             `SELECT
                 f.Person_ID,
@@ -91,22 +109,38 @@ async function getFinesReport(req, res) {
                 p.Last_name,
                 p.role,
                 COUNT(f.Fine_ID) AS unpaid_fee_count,
-                SUM(f.fee_amount) AS unpaid_total
-             FROM feeowed f
-             LEFT JOIN person p ON f.Person_ID = p.Person_ID
-             LEFT JOIN feepayment fp ON f.Fine_ID = fp.Fine_ID
-             WHERE fp.Payment_Date > f.date_owed OR fp.Fine_ID IS NULL
-             GROUP BY f.Person_ID, p.First_name, p.Last_name, p.role
-             ORDER BY unpaid_total DESC, unpaid_fee_count DESC`
+                COALESCE(SUM(f.fee_amount), 0) AS unpaid_total,
+                MIN(f.date_owed) AS oldest_unpaid_date,
+                MAX(f.date_owed) AS latest_unpaid_date,
+                COUNT(DISTINCT f.BorrowedItem_ID) AS overdue_item_count
+            FROM feeowed f
+            LEFT JOIN person p
+                ON f.Person_ID = p.Person_ID
+            LEFT JOIN borroweditem bi
+                ON f.BorrowedItem_ID = bi.BorrowedItem_ID
+            LEFT JOIN feepayment fp
+                ON f.Fine_ID = fp.Fine_ID
+            WHERE fp.Fine_ID IS NULL
+              AND bi.returnBy_date < CURDATE()
+              AND (? IS NULL OR p.role = ?)
+            GROUP BY
+                f.Person_ID,
+                p.First_name,
+                p.Last_name,
+                p.role
+            HAVING (? IS NULL OR COALESCE(SUM(f.fee_amount), 0) >= ?)
+            ORDER BY ${orderBy} DESC, unpaid_fee_count DESC
+            LIMIT ?`,
+            [role, role, minTotal, minTotal, limit]
         );
 
         res.writeHead(200);
         res.end(JSON.stringify(rows));
     } catch (err) {
-        console.error('Failed to generate fines report:', err);
+        console.error('Failed to generate fees report:', err);
         res.writeHead(500);
         res.end(JSON.stringify({
-            error: 'Failed to generate report',
+            error: 'Failed to generate fees report',
             details: err.message
         }));
     }
