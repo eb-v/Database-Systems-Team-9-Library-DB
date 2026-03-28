@@ -9,6 +9,8 @@ const holds = require('./routes/holds');
 const rooms = require('./routes/rooms');
 const users = require('./routes/users');
 const staff = require('./routes/staff');
+const reports = require('./routes/reports');
+
 const { verifyToken, requireRole, requireAdmin } = require('./middleware/auth');
 
 const server = http.createServer((req, res) => {
@@ -238,8 +240,30 @@ const server = http.createServer((req, res) => {
                 staff.updateStaffPermissions(req, res);
             });
         });
-
-    } else {
+    // admin-only — reports on popularity
+    } else if (req.method === 'GET' && req.url.startsWith('/api/reports/popularity')) {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                reports.getPopularityReport(req, res);
+            });
+        });
+    // admin-only — reports on fees
+    } else if (req.method === 'GET' && req.url.startsWith('/api/reports/fees')) {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                reports.getFinesReport(req, res);
+            });
+        }); 
+    // admin-only — reports on popularity
+    } else if (req.method === 'GET' && req.url.startsWith('/api/reports/patrons')) {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                reports.getPatronsActivityReport(req, res);
+            });
+        }); 
+        
+    }
+    else {
         res.writeHead(404);
         res.end(JSON.stringify({ error: 'Route not found' }));
     }
