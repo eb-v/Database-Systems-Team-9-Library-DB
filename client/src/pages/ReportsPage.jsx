@@ -1,6 +1,7 @@
 import { Navigate } from "react-router-dom";
 import { useEffect, useState } from "react";
 import NavigationBar from "../components/NavigationBar";
+import { apiFetch } from "../api";
 
 const REPORT_OPTIONS = {
   popularity: {
@@ -82,9 +83,9 @@ export default function ReportsPage() {
         }
 
         const query = params.toString();
-        const url = `http://localhost:3000${currentReport.endpoint}${query ? `?${query}` : ""}`;
+        const url = `${currentReport.endpoint}${query ? `?${query}` : ""}`;
 
-        const res = await fetch(url, {
+        const res = await apiFetch(url, {
           headers: {
             Authorization: `Bearer ${token}`,
           },
