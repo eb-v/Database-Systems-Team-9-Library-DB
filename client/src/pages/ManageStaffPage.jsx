@@ -127,7 +127,7 @@ export default function ManageStaffPage() {
                     <p className="font-semibold text-gray-800">{member.First_name} {member.Last_name}</p>
                     <p className="text-sm text-gray-500">@{member.username} · {member.email}</p>
                     <p className="text-xs mt-1 font-semibold text-green-800 uppercase tracking-wide">
-                      {member.Staff_permissions === 2 ? "Admin" : "Staff"}
+                      {Number(member.Staff_permissions) === 1 ? "Admin" : "Staff"}
                     </p>
                   </div>
                   <select
@@ -135,8 +135,8 @@ export default function ManageStaffPage() {
                     onChange={(e) => handleUpdatePermissions(member.Person_ID, parseInt(e.target.value))}
                     className="border border-gray-300 rounded-lg px-3 py-2 text-sm"
                   >
-                    <option value={1}>Staff</option>
-                    <option value={2}>Admin</option>
+                    <option value={1}>Admin</option>
+                    <option value={2}>Staff</option>
                   </select>
                 </div>
               ))}
@@ -217,8 +217,8 @@ export default function ManageStaffPage() {
                     onChange={(e) => setForm({ ...form, staff_permissions: e.target.value })}
                     className="w-full border border-gray-300 rounded-xl px-4 py-3"
                   >
-                    <option value={1}>Staff</option>
-                    <option value={2}>Admin</option>
+                    <option value={1}>Admin</option>
+                    <option value={2}>Staff</option>
                   </select>
                 </Field>
               </div>

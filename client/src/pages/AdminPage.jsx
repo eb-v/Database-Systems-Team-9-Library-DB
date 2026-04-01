@@ -1,5 +1,6 @@
 import { Navigate, useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
+import { getSessionRoleState } from "../auth";
 
 import userIcon from "../assets/user.png";
 import feeIcon from "../assets/fee.png";
@@ -86,9 +87,9 @@ const adminToolCards = [
 
 export default function AdminPage() {
   const navigate = useNavigate();
-  const userType = sessionStorage.getItem("userType");
+  const { isAdmin } = getSessionRoleState();
 
-  if (userType !== "admin") {
+  if (!isAdmin) {
     return <Navigate to="/login" replace />;
   }
 

@@ -5,12 +5,11 @@ import bannerImg from "../assets/banner.png";
 import userIcon from "../assets/user.png";
 import roomIcon from "../assets/room.png";
 import deviceIcon from "../assets/device.png";
+import { getSessionRoleState } from "../auth";
 
 export default function CustomerPage() {
   const navigate = useNavigate();
-  const userType = sessionStorage.getItem("userType");
-  const isStaff = userType === "staff";
-  const isAdmin = userType === "admin";
+  const { isStaff, isAdmin } = getSessionRoleState();
 
   const [category, setCategory] = useState("All");
   const [query, setQuery] = useState("");
