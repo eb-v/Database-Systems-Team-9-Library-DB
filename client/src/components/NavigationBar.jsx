@@ -1,10 +1,9 @@
 import { useNavigate } from "react-router-dom";
+import { getSessionRoleState } from "../auth";
 
 export default function NavigationBar() {
   const navigate = useNavigate();
-  const userType = sessionStorage.getItem("userType");
-  const isStaff = userType === "staff";
-  const isAdmin = userType === "admin";
+  const { isStaff, isAdmin } = getSessionRoleState();
 
   const homeRoute = isAdmin ? "/admin" : isStaff ? "/staff" : "/customer";
 

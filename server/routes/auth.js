@@ -74,7 +74,7 @@ async function login(req, res) {
                 return res.end(JSON.stringify({ error: 'Invalid credentials' }));
             }
 
-            // if the person is staff, get their Staff_permissions to determine if they are admin or regular staff. staff_permissions 1 = regular staff, 2 = admin
+            // if the person is staff, get their Staff_permissions to determine if they are admin or regular staff. staff_permissions 1 = admin, 2 = regular staff
             let staff_permissions = null;
             if (person.role === 1) {
                 const [staffRows] = await db.query(
@@ -123,7 +123,7 @@ async function registerStaff(req, res) {
 
             const personId = result.insertId;
 
-            // insert into Staff subtable with the provided staff_permissions. staff_permissions 1 = regular staff, 2 = admin
+            // insert into Staff subtable with the provided staff_permissions. staff_permissions 1 = admin, 2 = regular staff
             await db.query(
                 `INSERT INTO Staff (Person_ID, Staff_permissions) VALUES (?, ?)`,
                 [personId, staff_permissions]

@@ -7,7 +7,7 @@ async function getAllStaff(req, res) {
                     p.phone_number, p.account_status, s.Staff_permissions
              FROM Person p
              JOIN Staff s ON p.Person_ID = s.Person_ID
-             ORDER BY s.Staff_permissions DESC, p.Last_name ASC`
+             ORDER BY s.Staff_permissions ASC, p.Last_name ASC`
         );
 
         res.writeHead(200);
@@ -29,7 +29,7 @@ async function updateStaffPermissions(req, res) {
 
             if (staff_permissions !== 1 && staff_permissions !== 2) {
                 res.writeHead(400);
-                return res.end(JSON.stringify({ error: 'staff_permissions must be 1 (staff) or 2 (admin)' }));
+                return res.end(JSON.stringify({ error: 'staff_permissions must be 1 (admin) or 2 (staff)' }));
             }
 
             // prevent admin from demoting themselves

@@ -31,6 +31,9 @@ export default function LoginPage() {
       });
 
       const data = await response.json();
+      const role = Number(data.role);
+      const staffPermissions =
+        data.staff_permissions == null ? null : Number(data.staff_permissions);
 
       if (!response.ok) {
         setMessage(data.error || "Login failed.");
@@ -38,17 +41,22 @@ export default function LoginPage() {
       }
 
       sessionStorage.setItem("token", data.token);
-      sessionStorage.setItem("userRole", data.role);
+      sessionStorage.setItem("userRole", String(role));
       sessionStorage.setItem("personId", data.person_id);
 
       //role 1 = staff, role 2 = user
-      if (data.role === 2){
+      if (role === 2){
         sessionStorage.setItem("userType", "customer");
         sessionStorage.removeItem("staffRole");
         navigate("/customer");
-      } else if (data.role === 1){
-        sessionStorage.setItem("staffRole", String(data.staff_permissions));
-        if (data.staff_permissions === 2) {
+      } else if (role === 1){
+        if (staffPermissions == null) {
+          sessionStorage.removeItem("staffRole");
+        } else {
+          sessionStorage.setItem("staffRole", String(staffPermissions));
+        }
+
+        if (staffPermissions === 1) {
           sessionStorage.setItem("userType", "admin");
           navigate("/admin");
         } else {

@@ -18,6 +18,7 @@ import RentARoomPage from "./pages/RentARoomPage";
 import RentADevicePage from "./pages/RentADevicePage";
 import AdminPage from "./pages/AdminPage";
 import ManageStaffPage from "./pages/ManageStaffPage";
+import ReportsPage from "./pages/ReportsPage";
 
 export default function App() {
   return (
@@ -42,6 +43,7 @@ export default function App() {
       <Route path="/rent-a-device" element={<RentADevicePage />} />
       <Route path="/admin" element={<AdminPage />} />
       <Route path="/manage-staff" element={<ManageStaffPage />} />
+      <Route path="/reports" element={<ReportsPage />} />
     </Routes>
   );
 }

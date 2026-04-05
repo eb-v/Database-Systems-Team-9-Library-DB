@@ -2,14 +2,13 @@ import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 import { apiFetch } from "../api";
+import { getSessionRoleState } from "../auth";
 
 export default function CatalogPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
 
-  const userType = sessionStorage.getItem("userType");
-  const isStaff = userType === "staff";
-  const isAdmin = userType === "admin";
+  const { isStaff, isAdmin } = getSessionRoleState();
 
   const [category, setCategory] = useState(
     searchParams.get("type") === "1" ? "Books" :

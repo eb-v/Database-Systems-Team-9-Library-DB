@@ -12,9 +12,15 @@ async function addItem(req, res) {
             const {
                 item_name, item_type,
                 // book fields
+<<<<<<< HEAD
                 author_firstName, author_lastName, publisher, language, year_published,
                 // cd fields
                 cd_type, rating, release_date, genre,
+=======
+                author_firstName, author_lastName, publisher, language, year_published, book_damage_fine, book_loss_fine, book_genre,
+                // cd fields
+                cd_type, rating, release_date, cd_damage_fine, cd_loss_fine, cd_genre,
+>>>>>>> main
                 // device fields
                 device_type,
                 // number of copies to add
@@ -37,6 +43,7 @@ async function addItem(req, res) {
             // step 2 — insert into the correct subtype table based on item_type. item_type 1 = Book, 2 = CD, 3 = Device
             if (item_type === 1) {
                 await db.query(
+<<<<<<< HEAD
                     `INSERT INTO Book (Item_ID, author_firstName, author_lastName, publisher, language, year_published, Book_damage_fine, Book_loss_fine)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
                     [itemId, author_firstName, author_lastName, publisher, language, year_published, policy.damage, policy.loss]
@@ -46,6 +53,17 @@ async function addItem(req, res) {
                     `INSERT INTO CD (Item_ID, CD_type, rating, release_date, genre, CD_damage_fine, CD_loss_fine)
                      VALUES (?, ?, ?, ?, ?, ?, ?)`,
                     [itemId, cd_type, rating, release_date, genre, policy.damage, policy.loss]
+=======
+                    `INSERT INTO Book (Item_ID, author_firstName, author_lastName, publisher, language, year_published, Book_damage_fine, Book_loss_fine, genre)
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+                    [itemId, author_firstName, author_lastName, publisher, language, year_published, book_damage_fine, book_loss_fine, book_genre]
+                );
+            } else if (item_type === 2) {
+                await db.query(
+                    `INSERT INTO CD (Item_ID, CD_type, rating, release_date, CD_damage_fine, CD_loss_fine, genre)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+                    [itemId, cd_type, rating, release_date, cd_damage_fine, cd_loss_fine, cd_genre]
+>>>>>>> main
                 );
             } else if (item_type === 3) {
                 await db.query(
@@ -58,7 +76,7 @@ async function addItem(req, res) {
             // step 3 — insert one Copy row per num_copies requested. Copy_status 1 = available
             for (let i = 0; i < num_copies; i++) {
                 await db.query(
-                    `INSERT INTO Copy (Item_ID, Copy_status) VALUES (?, 1)`,
+                    `INSERT INTO Copy (Item_ID, Copy_status, date_added) VALUES (?, 1, CURDATE())`,
                     [itemId]
                 );
             }
@@ -83,8 +101,8 @@ async function getItems(req, res) {
         const [rows] = await db.query(
             `SELECT
                 i.Item_ID, i.Item_name, i.Item_type,
-                b.author_firstName, b.author_lastName, b.publisher, b.language, b.year_published, b.Book_damage_fine, b.Book_loss_fine,
-                c.CD_type, c.rating, c.release_date, c.CD_damage_fine, c.CD_loss_fine,
+                b.author_firstName, b.author_lastName, b.publisher, b.language, b.year_published, b.Book_damage_fine, b.Book_loss_fine, b.genre AS book_genre,
+                c.CD_type, c.rating, c.release_date, c.CD_damage_fine, c.CD_loss_fine, c.genre AS cd_genre,
                 d.Device_type, d.Device_damage_fine, d.Device_loss_fine,
                 COUNT(cp.Copy_ID) AS total_copies,
                 SUM(CASE WHEN cp.Copy_status = 1 THEN 1 ELSE 0 END) AS available_copies
@@ -116,8 +134,8 @@ async function getItemById(req, res) {
         const [rows] = await db.query(
             `SELECT
                 i.Item_ID, i.Item_name, i.Item_type,
-                b.author_firstName, b.author_lastName, b.publisher, b.language, b.year_published, b.Book_damage_fine, b.Book_loss_fine,
-                c.CD_type, c.rating, c.release_date, c.CD_damage_fine, c.CD_loss_fine,
+                b.author_firstName, b.author_lastName, b.publisher, b.language, b.year_published, b.Book_damage_fine, b.Book_loss_fine, b.genre AS book_genre,
+                c.CD_type, c.rating, c.release_date, c.CD_damage_fine, c.CD_loss_fine, c.genre AS cd_genre,
                 d.Device_type, d.Device_damage_fine, d.Device_loss_fine,
                 cp.Copy_ID, cp.Copy_status
             FROM Item i
@@ -180,9 +198,9 @@ async function updateItem(req, res) {
             const {
                 item_name,
                 // book fields
-                author_firstName, author_lastName, publisher, language, year_published, book_damage_fine, book_loss_fine,
+                author_firstName, author_lastName, publisher, language, year_published, book_damage_fine, book_loss_fine, book_genre,
                 // cd fields
-                cd_type, rating, release_date, cd_damage_fine, cd_loss_fine,
+                cd_type, rating, release_date, cd_damage_fine, cd_loss_fine, cd_genre,
                 // device fields
                 device_type, device_damage_fine, device_loss_fine
             } = JSON.parse(body);
@@ -201,15 +219,15 @@ async function updateItem(req, res) {
             // step 3 — update the correct subtype table
             if (item_type === 1) {
                 await db.query(
-                    `UPDATE Book SET author_firstName = ?, author_lastName = ?, publisher = ?, language = ?, year_published = ?, Book_damage_fine = ?, Book_loss_fine = ?
+                    `UPDATE Book SET author_firstName = ?, author_lastName = ?, publisher = ?, language = ?, year_published = ?, Book_damage_fine = ?, Book_loss_fine = ?, genre = ?
                      WHERE Item_ID = ?`,
-                    [author_firstName, author_lastName, publisher, language, year_published, book_damage_fine, book_loss_fine, itemId]
+                    [author_firstName, author_lastName, publisher, language, year_published, book_damage_fine, book_loss_fine, book_genre, itemId]
                 );
             } else if (item_type === 2) {
                 await db.query(
-                    `UPDATE CD SET CD_type = ?, rating = ?, release_date = ?, CD_damage_fine = ?, CD_loss_fine = ?
+                    `UPDATE CD SET CD_type = ?, rating = ?, release_date = ?, CD_damage_fine = ?, CD_loss_fine = ?, genre = ?
                      WHERE Item_ID = ?`,
-                    [cd_type, rating, release_date, cd_damage_fine, cd_loss_fine, itemId]
+                    [cd_type, rating, release_date, cd_damage_fine, cd_loss_fine, cd_genre, itemId]
                 );
             } else if (item_type === 3) {
                 await db.query(
