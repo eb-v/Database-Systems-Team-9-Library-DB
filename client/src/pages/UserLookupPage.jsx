@@ -17,6 +17,7 @@ export default function UserLookupPage() {
   const [searchValue, setSearchValue] = useState("");
   const [userRecord, setUserRecord] = useState(null);
   const [summary, setSummary] = useState(null);
+  const [results, setResults] = useState(null); // list of matches for name searches
   const [message, setMessage] = useState("");
   const userType = sessionStorage.getItem("userType");
   const isStaff = userType === "staff";
@@ -28,6 +29,7 @@ export default function UserLookupPage() {
     setMessage("");
     setUserRecord(null);
     setSummary(null);
+    setResults(null);
 
     if (!searchValue.trim()) {
       setMessage("Please enter a search value.");
@@ -37,9 +39,7 @@ export default function UserLookupPage() {
     try {
       const response = await apiFetch(
         `/api/users/lookup?searchBy=${searchType}&value=${encodeURIComponent(searchValue)}`,
-        {
-          headers: { Authorization: `Bearer ${token}` },
-        }
+        { headers: { Authorization: `Bearer ${token}` } }
       );
 
       const data = await response.json();
@@ -49,11 +49,38 @@ export default function UserLookupPage() {
         return;
       }
 
+      if (data.results) {
+        // name search returned multiple candidates
+        setResults(data.results);
+        setMessage(`${data.results.length} result${data.results.length !== 1 ? "s" : ""} found. Select a user to view details.`);
+      } else {
+        setUserRecord(data.person);
+        setSummary(data.summary);
+        setMessage("User record loaded.");
+      }
+    } catch (error) {
+      console.error(error);
+      setMessage("Unable to connect to the server.");
+    }
+  };
+
+  const handleSelectResult = async (personId) => {
+    setMessage("");
+    setResults(null);
+    try {
+      const response = await apiFetch(
+        `/api/users/lookup?searchBy=personId&value=${personId}`,
+        { headers: { Authorization: `Bearer ${token}` } }
+      );
+      const data = await response.json();
+      if (!response.ok) {
+        setMessage(data.error || "Failed to load user record.");
+        return;
+      }
       setUserRecord(data.person);
       setSummary(data.summary);
       setMessage("User record loaded.");
-    } catch (error) {
-      console.error(error);
+    } catch {
       setMessage("Unable to connect to the server.");
     }
   };
@@ -99,6 +126,9 @@ export default function UserLookupPage() {
                 <option value="personId">Person ID</option>
                 <option value="username">Username</option>
                 <option value="email">Email</option>
+                <option value="firstName">First Name</option>
+                <option value="lastName">Last Name</option>
+                <option value="phone">Phone Number</option>
               </select>
             </div>
 
@@ -123,7 +153,27 @@ export default function UserLookupPage() {
             </button>
           </div>
 
-          {/*user summary section*/}
+          {/* name search results list */}
+          {results && (
+            <div className="space-y-2">
+              <h2 className="text-xl font-semibold text-green-900">Results</h2>
+              <div className="divide-y border rounded-lg overflow-hidden">
+                {results.map((r) => (
+                  <button
+                    key={r.Person_ID}
+                    onClick={() => handleSelectResult(r.Person_ID)}
+                    className="w-full text-left px-4 py-3 hover:bg-green-50 flex justify-between items-center"
+                  >
+                    <span className="font-semibold text-gray-800">{r.First_name} {r.Last_name}</span>
+                    <span className="text-sm text-gray-500">{r.email} · ID {r.Person_ID}</span>
+                  </button>
+                ))}
+              </div>
+            </div>
+          )}
+
+          {/*user details and account summary — only shown after a single result is loaded*/}
+          {!results && userRecord && <div className="space-y-8">
           <div className="space-y-4">
             <h2 className="text-xl font-semibold text-green-900">
               User Details
@@ -138,6 +188,7 @@ export default function UserLookupPage() {
                   value={`${userRecord.First_name} ${userRecord.Last_name}`}
                 />
                 <ReadOnlyField label="Email" value={userRecord.email} />
+                <ReadOnlyField label="Phone" value={userRecord.phone_number || "—"} />
                 <ReadOnlyField
                   label="Account Status"
                   value={getAccountStatusLabel(userRecord.account_status)}
@@ -180,6 +231,7 @@ export default function UserLookupPage() {
               <p className="text-gray-500">No summary available yet.</p>
             )}
           </div>
+          </div>}
 
           {userRecord && (
           <div className="space-y-4">

@@ -19,29 +19,53 @@ async function lookupUser(req, res) {
             }
         }
 
+        // name searches return a list to pick from, not full details
+        if (searchBy === 'firstName' || searchBy === 'lastName') {
+            const column = searchBy === 'firstName' ? 'First_name' : 'Last_name';
+            const [rows] = await db.query(
+                `SELECT Person_ID, First_name, Last_name, email, username
+                 FROM Person WHERE ${column} LIKE ?
+                 ORDER BY Last_name, First_name LIMIT 50`,
+                [`%${value}%`]
+            );
+            if (rows.length === 0) {
+                res.writeHead(404);
+                return res.end(JSON.stringify({ error: 'No users found' }));
+            }
+            res.writeHead(200);
+            return res.end(JSON.stringify({ results: rows }));
+        }
+
         let query = '';
         let params = [value];
 
         if (searchBy === 'personId') {
             query = `
                 SELECT Person_ID, First_name, Last_name, email, username,
-                       account_status, borrow_status, role
+                       phone_number, account_status, borrow_status, role
                 FROM Person
                 WHERE Person_ID = ?
             `;
         } else if (searchBy === 'username') {
             query = `
                 SELECT Person_ID, First_name, Last_name, email, username,
-                       account_status, borrow_status, role
+                       phone_number, account_status, borrow_status, role
                 FROM Person
                 WHERE username = ?
             `;
         } else if (searchBy === 'email') {
             query = `
                 SELECT Person_ID, First_name, Last_name, email, username,
-                       account_status, borrow_status, role
+                       phone_number, account_status, borrow_status, role
                 FROM Person
                 WHERE email = ?
+            `;
+        } else if (searchBy === 'phone') {
+            query = `
+                SELECT Person_ID, First_name, Last_name, email, username,
+                       phone_number, account_status, borrow_status, role
+                FROM Person
+                WHERE phone_number = ?
             `;
         } else {
             res.writeHead(400);
