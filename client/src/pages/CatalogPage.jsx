@@ -40,8 +40,8 @@ export default function CatalogPage() {
         return;
       }
 
-      // filter out devices (type 3) since they are handled separately
-      setResults(data.filter((item) => item.Item_type !== 3));
+      // filter out devices (type 3) and items with no active copies
+      setResults(data.filter((item) => item.Item_type !== 3 && Number(item.total_copies) > 0));
     } catch (err) {
       setError("Unable to connect to the server.");
     } finally {

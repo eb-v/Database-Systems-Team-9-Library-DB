@@ -125,7 +125,7 @@ export default function ItemDetailPage() {
           <div className="mt-6 pt-6 border-t border-gray-100">
             <p className="text-sm text-gray-600">
               <span className="font-semibold">{availableCount}</span> of{" "}
-              <span className="font-semibold">{item.copies.length}</span> copies available
+              <span className="font-semibold">{item.copies.filter((c) => c.Copy_status !== 0).length}</span> copies available
             </p>
           </div>
 
