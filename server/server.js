@@ -10,6 +10,7 @@ const rooms = require('./routes/rooms');
 const users = require('./routes/users');
 const staff = require('./routes/staff');
 const reports = require('./routes/reports');
+const notifications = require('./routes/notifications');
 
 const { verifyToken, requireRole, requireAdmin } = require('./middleware/auth');
 
@@ -80,10 +81,15 @@ const server = http.createServer((req, res) => {
         verifyToken(req, res, () => {
             users.lookupUser(req, res);
         });
-        
+
     } else if (req.method === 'PUT' && req.url === '/api/users/profile') {
         verifyToken(req, res, () => {
             users.updateUserProfile(req, res);
+        });
+    // any logged-in user can view their own notifications
+    } else if (req.method === 'GET' && req.url === '/api/notifications') {
+        verifyToken(req, res, () => {
+            notifications.getMyNotifications(req, res);
         });
 
     // staff-only route — edit an existing item

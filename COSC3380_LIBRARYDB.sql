@@ -192,3 +192,31 @@ BEGIN
 END //
 
 DELIMITER ;
+
+DELIMITER //
+
+CREATE TRIGGER notify_on_fee
+AFTER INSERT ON FeeOwed
+FOR EACH ROW
+BEGIN
+  IF NEW.status = 1 THEN
+    INSERT INTO notification (
+      Person_ID,
+      type,
+      message,
+      is_read,
+      created_at,
+      Fine_ID
+    )
+    VALUES (
+      NEW.Person_ID,
+      'fee',
+      CONCAT('A new fee of $', FORMAT(NEW.fee_amount, 2), ' has been added to your account.'),
+      0,
+      NOW(),
+      NEW.Fine_ID
+    );
+  END IF;
+END //
+
+DELIMITER ;

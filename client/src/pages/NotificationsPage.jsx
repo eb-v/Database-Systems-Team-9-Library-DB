@@ -19,38 +19,20 @@ export default function NotificationsPage() {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        // Replace this later with your real backend route
-        // Example:
-        // const response = await apiFetch(`/api/notifications/${personId}`, {
-        //   headers: { Authorization: `Bearer ${token}` },
-        // });
+        const response = await apiFetch("/api/notifications", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-        // Temporary mock data for UI development
-        const mockNotifications = [
-          {
-            Notification_ID: 1,
-            type: 1,
-            message: "Your hold is ready for pickup.",
-            is_read: 0,
-            created_at: "2026-04-06T10:30:00",
-          },
-          {
-            Notification_ID: 2,
-            type: 2,
-            message: "A fee has been added to your account.",
-            is_read: 1,
-            created_at: "2026-04-05T14:15:00",
-          },
-          {
-            Notification_ID: 3,
-            type: 3,
-            message: "Reminder: one of your borrowed items is due soon.",
-            is_read: 0,
-            created_at: "2026-04-04T09:00:00",
-          },
-        ];
+        const data = await response.json();
 
-        setNotifications(mockNotifications);
+        if (!response.ok) {
+          setError(data.error || "Failed to load notifications.");
+          return;
+        }
+
+        setNotifications(data);
       } catch (err) {
         setError("Unable to load notifications.");
       } finally {
@@ -68,11 +50,11 @@ export default function NotificationsPage() {
 
   const getNotificationType = (type) => {
     switch (type) {
-      case 1:
-        return "Hold Update";
-      case 2:
+      case "hold_ready":
+        return "Hold Ready";
+      case "fee":
         return "Fee Update";
-      case 3:
+      case "reminder":
         return "Reminder";
       default:
         return "Notification";
@@ -106,7 +88,7 @@ export default function NotificationsPage() {
     );
 
     // Later:
-    // await apiFetch(`/api/notifications/read-all/${personId}`, {
+    // await apiFetch(`/api/notifications/read-all`, {
     //   method: "PATCH",
     //   headers: { Authorization: `Bearer ${token}` },
     // });
