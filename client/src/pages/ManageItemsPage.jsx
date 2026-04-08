@@ -17,6 +17,7 @@ export default function ManageItemsPage() {
     publisher: "",
     language: "",
     year_published: "",
+    book_genre: "",
     num_copies: 1,
   });
 
@@ -281,6 +282,7 @@ export default function ManageItemsPage() {
         publisher: "",
         language: "",
         year_published: "",
+        book_genre: "",
         num_copies: 1,
       });
     } catch (error) {
@@ -298,6 +300,7 @@ export default function ManageItemsPage() {
         item_type: 2,
         cd_type: cdForm.cd_type ? parseInt(cdForm.cd_type, 10) : null,
         rating: cdForm.rating ? parseInt(cdForm.rating, 10) : null,
+        cd_genre: cdForm.genre,
         num_copies: Number(cdForm.num_copies),
       };
       const response = await apiFetch("/api/items", {
@@ -560,18 +563,43 @@ export default function ManageItemsPage() {
 
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
+                  Genre <span className="text-red-600">*</span>
+                </label>
+                <select
+                  name="book_genre"
+                  value={bookForm.book_genre}
+                  onChange={handleBookChange}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3"
+                  required
+                >
+                  <option value="">Select genre</option>
+                  <option value="Fiction">Fiction</option>
+                  <option value="Non-Fiction">Non-Fiction</option>
+                  <option value="Mystery">Mystery</option>
+                  <option value="Science Fiction">Science Fiction</option>
+                  <option value="Fantasy">Fantasy</option>
+                  <option value="Biography">Biography</option>
+                  <option value="History">History</option>
+                  <option value="Romance">Romance</option>
+                  <option value="Thriller">Thriller</option>
+                  <option value="Children">Children</option>
+                </select>
+              </div>
+
+              <div>
+                <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Number of Copies <span className="text-red-600">*</span>
-               </label>
-               <input
-                 type="number"
-                 min="1"
-                 name="num_copies"
-                 value={bookForm.num_copies}
-                 onChange={handleBookChange}
-                 className="w-full border border-gray-300 rounded-lg px-4 py-3"
-                 required
-               />
-            </div>
+                </label>
+                <input
+                  type="number"
+                  min="1"
+                  name="num_copies"
+                  value={bookForm.num_copies}
+                  onChange={handleBookChange}
+                  className="w-full border border-gray-300 rounded-lg px-4 py-3"
+                  required
+                />
+              </div>
 
               <button 
                 type = "submit"
@@ -905,6 +933,23 @@ export default function ManageItemsPage() {
                     <label className="block text-sm font-semibold text-gray-700 mb-2">Year Published <span className="text-red-600">*</span></label>
                     <input type="date" name="year_published" value={updateForm.year_published || ""} onChange={handleUpdateChange}
                       className="w-full border border-gray-300 rounded-lg px-4 py-3" required />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-semibold text-gray-700 mb-2">Genre <span className="text-red-600">*</span></label>
+                    <select name="book_genre" value={updateForm.book_genre || ""} onChange={handleUpdateChange}
+                      className="w-full border border-gray-300 rounded-lg px-4 py-3" required>
+                      <option value="">Select genre</option>
+                      <option value="Fiction">Fiction</option>
+                      <option value="Non-Fiction">Non-Fiction</option>
+                      <option value="Mystery">Mystery</option>
+                      <option value="Science Fiction">Science Fiction</option>
+                      <option value="Fantasy">Fantasy</option>
+                      <option value="Biography">Biography</option>
+                      <option value="History">History</option>
+                      <option value="Romance">Romance</option>
+                      <option value="Thriller">Thriller</option>
+                      <option value="Children">Children</option>
+                    </select>
                   </div>
                   <button type="submit"
                     className="bg-green-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-900">
