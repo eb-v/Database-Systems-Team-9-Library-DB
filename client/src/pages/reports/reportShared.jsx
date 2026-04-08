@@ -641,14 +641,10 @@ export function renderIdentityCell(title, subtitle) {
 }
 
 export function renderPopularityIdentityCell(item) {
-  const authorName =
-    [item.author_firstName, item.author_lastName].filter(Boolean).join(" ") || "N/A";
-  const details = [formatItemType(item.Item_type), item.genre || "N/A", authorName];
-
   return (
     <div className="min-w-[240px]">
       <div className="font-semibold text-green-900">{item.Item_name}</div>
-      <div className="text-sm text-green-800">{details.join(" | ")}</div>
+      <div className="text-sm text-green-800">{getPopularityIdentityDetails(item)}</div>
     </div>
   );
 }
@@ -658,6 +654,18 @@ export function renderPatronIdentityCell(item) {
     `${item.First_name} ${item.Last_name}`,
     `Patron ID: ${item.Person_ID}`
   );
+}
+
+export function getPopularityIdentityText(item) {
+  return `${item.Item_name}\n${getPopularityIdentityDetails(item)}`;
+}
+
+export function getPatronIdentityText(item) {
+  return `${item.First_name} ${item.Last_name}\nPatron ID: ${item.Person_ID}`;
+}
+
+export function getRecommendationText(item) {
+  return `${item.recommendation_summary}\n${item.recommendation_detail}`;
 }
 
 function getRowKey(reportType, row, index) {
@@ -678,6 +686,13 @@ function getSortIndicator(isSortedColumn, sortDirection) {
   }
 
   return sortDirection === "asc" ? "\u2191" : "\u2193";
+}
+
+function getPopularityIdentityDetails(item) {
+  const authorName =
+    [item.author_firstName, item.author_lastName].filter(Boolean).join(" ") || "N/A";
+
+  return [formatItemType(item.Item_type), item.genre || "N/A", authorName].join(" | ");
 }
 
 export function formatItemType(type) {
