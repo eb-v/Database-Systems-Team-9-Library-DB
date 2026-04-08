@@ -1157,20 +1157,25 @@ export default function ManageItemsPage() {
                       };
                       const { label: statusLabel, color: statusColor } =
                         statusMap[copy.Copy_status] || { label: "Unknown", color: "text-gray-500" };
+                      const isCheckedOut = copy.Copy_status === 2;
                       return (
                         <li key={copy.Copy_ID}>
-                          <label className="flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-gray-50">
+                          <label className={`flex items-center gap-3 px-4 py-3 ${isCheckedOut ? "opacity-50 cursor-not-allowed" : "cursor-pointer hover:bg-gray-50"}`}>
                             <input
                               type="checkbox"
                               value={copy.Copy_ID}
                               checked={selectedCopyIds.includes(copy.Copy_ID)}
                               onChange={() => handleSelectCopy(copy.Copy_ID)}
+                              disabled={isCheckedOut}
                               className="accent-green-800"
                             />
                             <span className="text-sm">Copy #{idx + 1} (ID: {copy.Copy_ID})</span>
                             <span className={`text-xs font-semibold ${statusColor}`}>
                               {statusLabel}
                             </span>
+                            {isCheckedOut && (
+                              <span className="text-xs text-gray-400 ml-auto">Cannot remove while checked out</span>
+                            )}
                           </label>
                         </li>
                       );

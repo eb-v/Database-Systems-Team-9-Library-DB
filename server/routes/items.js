@@ -239,12 +239,17 @@ async function deleteCopy(req, res) {
 
         // check the copy exists and belongs to the item
         const [copyRows] = await db.query(
-            `SELECT Copy_ID FROM Copy WHERE Copy_ID = ? AND Item_ID = ?`,
+            `SELECT Copy_ID, Copy_status FROM Copy WHERE Copy_ID = ? AND Item_ID = ?`,
             [copyId, itemId]
         );
         if (copyRows.length === 0) {
             res.writeHead(404);
             return res.end(JSON.stringify({ error: 'Copy not found' }));
+        }
+
+        if (copyRows[0].Copy_status === 2) {
+            res.writeHead(400);
+            return res.end(JSON.stringify({ error: 'Cannot remove a copy that is currently checked out' }));
         }
 
         // soft delete — set Copy_status to 0 (removed from circulation) instead of deleting the row
