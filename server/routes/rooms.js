@@ -268,4 +268,54 @@ async function cancelReservation(req, res) {
     }
 }
 
-module.exports = { addRoom, makeReservation, getReservationsForPerson, getAllReservations, cancelReservation };
+async function getAvailableSlots(req, res) {
+    try {
+        const url = new URL(req.url, 'http://localhost');
+        const date = url.searchParams.get('date');   // e.g. "2026-04-09"
+        const length = parseInt(url.searchParams.get('length') || '1');
+
+        if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
+            res.writeHead(400);
+            return res.end(JSON.stringify({ error: 'date parameter required (YYYY-MM-DD)' }));
+        }
+        if (!Number.isInteger(length) || length < 1 || length > 8) {
+            res.writeHead(400);
+            return res.end(JSON.stringify({ error: 'length must be between 1 and 8' }));
+        }
+
+        const now = new Date();
+        const availableSlots = [];
+
+        for (let hour = OPEN_HOUR; hour + length <= CLOSE_HOUR; hour++) {
+            const slotStart = new Date(`${date}T${String(hour).padStart(2, '0')}:00:00`);
+            const slotEnd = new Date(slotStart.getTime() + length * 60 * 60 * 1000);
+
+            // skip slots already in the past
+            if (slotEnd <= now) continue;
+
+            const [freeRooms] = await db.query(
+                `SELECT Room_ID FROM Room
+                 WHERE Room_status = 1
+                 AND Room_ID NOT IN (
+                     SELECT Room_ID FROM RoomReservation
+                     WHERE reservation_status = 1
+                     AND start_time < ? AND DATE_ADD(start_time, INTERVAL TIME_TO_SEC(length) SECOND) > ?
+                 )
+                 LIMIT 1`,
+                [slotEnd, slotStart]
+            );
+
+            if (freeRooms.length > 0) {
+                availableSlots.push(hour);
+            }
+        }
+
+        res.writeHead(200);
+        res.end(JSON.stringify({ available_slots: availableSlots }));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to fetch available slots', details: err.message }));
+    }
+}
+
+module.exports = { addRoom, makeReservation, getReservationsForPerson, getAllReservations, cancelReservation, getAvailableSlots };

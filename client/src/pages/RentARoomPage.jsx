@@ -27,6 +27,8 @@ export default function RentARoomPage() {
   const [selectedHour, setSelectedHour] = useState(OPEN_HOUR);
   const [length, setLength] = useState(1);
   const [nextAvailable, setNextAvailable] = useState(null);
+  const [availableSlots, setAvailableSlots] = useState(null); // null = not fetched yet
+  const [slotsLoading, setSlotsLoading] = useState(false);
 
   // max length that fits before closing time
   const maxLength = Math.min(8, CLOSE_HOUR - selectedHour);
@@ -62,6 +64,25 @@ export default function RentARoomPage() {
   useEffect(() => {
     fetchReservations();
   }, []);
+
+  useEffect(() => {
+    if (!selectedDate) return;
+    setSlotsLoading(true);
+    setAvailableSlots(null);
+    apiFetch(`/api/reservations/available?date=${selectedDate}&length=${length}`, {
+      headers: { Authorization: `Bearer ${token}` },
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        setAvailableSlots(data.available_slots ?? []);
+        // if current selection is no longer available, pick the first available slot
+        if (data.available_slots && !data.available_slots.includes(selectedHour)) {
+          setSelectedHour(data.available_slots[0] ?? OPEN_HOUR);
+        }
+      })
+      .catch(() => setAvailableSlots([]))
+      .finally(() => setSlotsLoading(false));
+  }, [selectedDate, length]);
 
   const handleReserve = async (e) => {
     e.preventDefault();
@@ -189,20 +210,30 @@ export default function RentARoomPage() {
                 <label className="block text-sm font-semibold text-gray-700 mb-2">
                   Start Time <span className="text-gray-400 font-normal">(Library hours: 8:00 AM – 9:00 PM)</span>
                 </label>
-                <select
-                  value={selectedHour}
-                  onChange={(e) => {
-                    const h = parseInt(e.target.value);
-                    setSelectedHour(h);
-                    // clamp length so it doesn't push past closing
-                    if (length > CLOSE_HOUR - h) setLength(CLOSE_HOUR - h);
-                  }}
-                  className="w-full border border-gray-300 rounded-xl px-4 py-3"
-                >
-                  {TIME_SLOTS.map(({ hour, label }) => (
-                    <option key={hour} value={hour}>{label}</option>
-                  ))}
-                </select>
+                {!selectedDate ? (
+                  <p className="text-sm text-gray-400 italic">Select a date first</p>
+                ) : slotsLoading ? (
+                  <p className="text-sm text-gray-400 italic">Checking availability...</p>
+                ) : availableSlots && availableSlots.length === 0 ? (
+                  <p className="text-sm text-red-500">No available slots for this date and duration.</p>
+                ) : (
+                  <select
+                    value={selectedHour}
+                    onChange={(e) => {
+                      const h = parseInt(e.target.value);
+                      setSelectedHour(h);
+                      if (length > CLOSE_HOUR - h) setLength(CLOSE_HOUR - h);
+                    }}
+                    className="w-full border border-gray-300 rounded-xl px-4 py-3"
+                    disabled={!availableSlots}
+                  >
+                    {TIME_SLOTS
+                      .filter(({ hour }) => !availableSlots || availableSlots.includes(hour))
+                      .map(({ hour, label }) => (
+                        <option key={hour} value={hour}>{label}</option>
+                      ))}
+                  </select>
+                )}
               </div>
               <div>
                 <label className="block text-sm font-semibold text-gray-700 mb-2">Duration (hours)</label>
@@ -218,7 +249,8 @@ export default function RentARoomPage() {
               </div>
               <button
                 type="submit"
-                className="w-full bg-green-900 text-white py-3 rounded-xl font-semibold hover:bg-green-800"
+                disabled={!availableSlots || availableSlots.length === 0 || slotsLoading}
+                className="w-full bg-green-900 text-white py-3 rounded-xl font-semibold hover:bg-green-800 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 Reserve Room
               </button>
