@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 import { useLocation } from "react-router-dom";
+import { apiFetch } from "../api";
 
 const getItemTypeLabel = (type) => {
   switch (Number(type)) {
@@ -84,7 +85,7 @@ export default function PayFeesPage() {
 
   const fetchUserFees = async (currentPersonId) => {
     try {
-      const response = await fetch(`http://localhost:3000/api/fees/${currentPersonId}`, {
+      const response = await apiFetch(`/api/fees/${currentPersonId}`, {
         method: "GET",
         headers: {
           Authorization: `Bearer ${token}`,
@@ -133,7 +134,7 @@ export default function PayFeesPage() {
     const methodValue = paymentMethod === "Cash" ? 1 : 2;
 
     try {
-      const response = await fetch("http://localhost:3000/api/fees/pay", {
+      const response = await apiFetch("/api/fees/pay", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",
