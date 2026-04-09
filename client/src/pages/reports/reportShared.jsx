@@ -475,18 +475,32 @@ export function ReportTable({
   sortDirection,
   data,
   columns,
+  hiddenColumnKeys = [],
   onSortChange,
+  onColumnVisibilityChange,
 }) {
+  const hiddenColumns = columns.filter(
+    (column) => column.hideable !== false && hiddenColumnKeys.includes(column.key)
+  );
+  const visibleColumns = columns.filter((column) => !hiddenColumnKeys.includes(column.key));
+  const fillerWidth = getTableWidth(hiddenColumns);
+  const hasFillerColumn = fillerWidth > 0;
   const {
     topScrollRef,
     bottomScrollRef,
     topSpacerRef,
     handleTopScroll,
     handleBottomScroll,
-  } = useSyncedHorizontalScroll(reportType, data.length, columns.length);
+  } = useSyncedHorizontalScroll(reportType, data.length, visibleColumns.length);
 
   return (
     <div className="overflow-hidden rounded-xl border border-gray-200 bg-white shadow-md">
+      {hiddenColumns.length > 0 && (
+        <HiddenColumnsToolbar
+          columns={hiddenColumns}
+          onColumnVisibilityChange={onColumnVisibilityChange}
+        />
+      )}
       <div
         ref={topScrollRef}
         onScroll={handleTopScroll}
@@ -499,10 +513,16 @@ export function ReportTable({
         onScroll={handleBottomScroll}
         className="overflow-x-auto"
       >
-        <table className="min-w-full border-collapse text-sm">
+        <table className="min-w-full border-collapse text-sm" style={{ tableLayout: "fixed" }}>
+          <colgroup>
+            {visibleColumns.map((column) => (
+              <col key={column.key} style={{ width: `${getColumnWidth(column)}px` }} />
+            ))}
+            {hasFillerColumn && <col style={{ width: `${fillerWidth}px` }} />}
+          </colgroup>
           <thead className="bg-gray-100">
             <tr>
-              {columns.map((column) => {
+              {visibleColumns.map((column) => {
                 const isSortedColumn = column.key === sort;
 
                 return (
@@ -512,27 +532,43 @@ export function ReportTable({
                       isSortedColumn ? "bg-green-100 text-green-900" : "text-gray-600"
                     }`}
                   >
-                    {column.sortable === false ? (
-                      column.label
-                    ) : (
-                      <button
-                        type="button"
-                        onClick={() => onSortChange(column.key)}
-                        className="flex w-full items-start justify-between gap-2 text-left"
-                      >
-                        <span>{column.label}</span>
-                        <span
-                          className={`mt-0.5 text-sm ${
-                            isSortedColumn ? "text-green-900" : "text-gray-400"
-                          }`}
+                    <div className="space-y-2">
+                      {column.sortable === false ? (
+                        <div>{column.label}</div>
+                      ) : (
+                        <button
+                          type="button"
+                          onClick={() => onSortChange(column.key)}
+                          className="flex w-full items-start justify-between gap-2 text-left"
                         >
-                          {getSortIndicator(isSortedColumn, sortDirection)}
-                        </span>
-                      </button>
-                    )}
+                          <span>{column.label}</span>
+                          <span
+                            className={`mt-0.5 text-sm ${
+                              isSortedColumn ? "text-green-900" : "text-gray-400"
+                            }`}
+                          >
+                            {getSortIndicator(isSortedColumn, sortDirection)}
+                          </span>
+                        </button>
+                      )}
+
+                      {column.hideable !== false && (
+                        <button
+                          type="button"
+                          onClick={() => onColumnVisibilityChange(column.key, false)}
+                          className="flex items-center gap-2 text-[11px] font-medium normal-case tracking-normal text-gray-500 hover:text-green-900"
+                        >
+                          <span className="inline-flex h-4 w-4 items-center justify-center rounded border border-gray-300 bg-white text-[10px] text-green-700">
+                            ✓
+                          </span>
+                          <span>Shown</span>
+                        </button>
+                      )}
+                    </div>
                   </th>
                 );
               })}
+              {hasFillerColumn && <BlankHeaderCell />}
             </tr>
           </thead>
           <tbody>
@@ -541,7 +577,7 @@ export function ReportTable({
                 key={getRowKey(reportType, row, index)}
                 className={index % 2 === 0 ? "bg-white" : "bg-gray-50"}
               >
-                {columns.map((column) => (
+                {visibleColumns.map((column) => (
                   <td
                     key={column.key}
                     className={`border border-gray-200 px-3 py-2 align-top ${
@@ -551,12 +587,53 @@ export function ReportTable({
                     {column.render(row)}
                   </td>
                 ))}
+                {hasFillerColumn && <BlankBodyCell isEvenRow={index % 2 === 0} />}
               </tr>
             ))}
           </tbody>
         </table>
       </div>
     </div>
+  );
+}
+
+function HiddenColumnsToolbar({ columns, onColumnVisibilityChange }) {
+  return (
+    <div className="border-b border-gray-200 bg-gray-50 px-4 py-3">
+      <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-gray-500">
+        Hidden Columns
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {columns.map((column) => (
+          <button
+            key={column.key}
+            type="button"
+            onClick={() => onColumnVisibilityChange(column.key, true)}
+            className="rounded-full border border-gray-300 bg-white px-3 py-1 text-xs font-medium text-gray-700 hover:border-green-300 hover:text-green-900"
+          >
+            Show {column.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+function BlankHeaderCell() {
+  return (
+    <th
+      aria-hidden="true"
+      className="border border-gray-200 bg-gray-100 px-0 py-0"
+    />
+  );
+}
+
+function BlankBodyCell({ isEvenRow }) {
+  return (
+    <td
+      aria-hidden="true"
+      className={`border border-gray-200 ${isEvenRow ? "bg-white" : "bg-gray-50"}`}
+    />
   );
 }
 
@@ -686,6 +763,22 @@ function getSortIndicator(isSortedColumn, sortDirection) {
   }
 
   return sortDirection === "asc" ? "\u2191" : "\u2193";
+}
+
+function getColumnWidth(column) {
+  if (column.width) {
+    return column.width;
+  }
+
+  if (column.hideable === false) {
+    return 260;
+  }
+
+  return 150;
+}
+
+function getTableWidth(columns) {
+  return columns.reduce((total, column) => total + getColumnWidth(column), 0);
 }
 
 function getPopularityIdentityDetails(item) {

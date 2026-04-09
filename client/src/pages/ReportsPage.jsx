@@ -76,6 +76,10 @@ function createInitialFilterState() {
   return createReportStateMap((report) => report.createInitialFilters());
 }
 
+function createInitialHiddenColumnsState() {
+  return createReportStateMap(() => []);
+}
+
 function buildReportParams(reportDefinition, sort, sortDirection, filters, extraParams = {}) {
   const params = new URLSearchParams();
 
@@ -108,6 +112,33 @@ function createReportFileStem(reportKey, periodLabel) {
   return `${reportKey}-report-${normalizedPeriod || "all-time"}`;
 }
 
+function getFallbackSortColumn(columns, hiddenKeys, preferredKey) {
+  const preferredColumn = columns.find(
+    (column) =>
+      column.key === preferredKey &&
+      column.sortable !== false &&
+      !hiddenKeys.includes(column.key)
+  );
+
+  if (preferredColumn) {
+    return preferredColumn.key;
+  }
+
+  return (
+    columns.find(
+      (column) => column.sortable !== false && !hiddenKeys.includes(column.key)
+    )?.key || preferredKey
+  );
+}
+
+function getNextHiddenColumnKeys(hiddenKeys, columnKey, shouldShow) {
+  if (shouldShow) {
+    return hiddenKeys.filter((key) => key !== columnKey);
+  }
+
+  return hiddenKeys.includes(columnKey) ? hiddenKeys : [...hiddenKeys, columnKey];
+}
+
 export default function ReportsPage() {
   const { isAdmin } = getSessionRoleState();
   const token = sessionStorage.getItem("token");
@@ -118,6 +149,9 @@ export default function ReportsPage() {
     createInitialSortDirectionState
   );
   const [filtersByReport, setFiltersByReport] = useState(createInitialFilterState);
+  const [hiddenColumnsByReport, setHiddenColumnsByReport] = useState(
+    createInitialHiddenColumnsState
+  );
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
@@ -137,6 +171,7 @@ export default function ReportsPage() {
   const ActiveFiltersComponent = activeReport.FiltersComponent;
   const ActiveTableComponent = activeReport.TableComponent;
   const currentColumns = activeReport.getColumns(reportPeriodLabel);
+  const hiddenColumnKeys = hiddenColumnsByReport[reportType];
 
   function updateCurrentSort(value) {
     setSortByReport((prev) => ({
@@ -208,6 +243,22 @@ export default function ReportsPage() {
 
     updateCurrentSort(columnKey);
     updateCurrentSortDirection(nextDirection);
+  }
+
+  function handleColumnVisibilityChange(columnKey, shouldShow) {
+    const nextHiddenKeys = getNextHiddenColumnKeys(hiddenColumnKeys, columnKey, shouldShow);
+
+    setHiddenColumnsByReport((prev) => ({
+      ...prev,
+      [reportType]: nextHiddenKeys,
+    }));
+
+    if (!shouldShow && currentSort === columnKey) {
+      updateCurrentSort(
+        getFallbackSortColumn(currentColumns, nextHiddenKeys, activeReport.defaultSort)
+      );
+      updateCurrentSortDirection("desc");
+    }
   }
 
   function updateCurrentFilter(key, value) {
@@ -347,7 +398,9 @@ export default function ReportsPage() {
             periodLabel={reportPeriodLabel}
             sort={currentSort}
             sortDirection={currentSortDirection}
+            hiddenColumnKeys={hiddenColumnKeys}
             onSortChange={handleColumnSort}
+            onColumnVisibilityChange={handleColumnVisibilityChange}
           />
         )}
       </div>

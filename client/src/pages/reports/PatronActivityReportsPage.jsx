@@ -82,7 +82,9 @@ export function PatronActivityReportsTable({
   periodLabel,
   sort,
   sortDirection,
+  hiddenColumnKeys,
   onSortChange,
+  onColumnVisibilityChange,
 }) {
   const columns = getPatronActivityColumns(periodLabel);
 
@@ -93,7 +95,9 @@ export function PatronActivityReportsTable({
       sortDirection={sortDirection}
       data={data}
       columns={columns}
+      hiddenColumnKeys={hiddenColumnKeys}
       onSortChange={onSortChange}
+      onColumnVisibilityChange={onColumnVisibilityChange}
     />
   );
 }
@@ -104,6 +108,7 @@ export function getPatronActivityColumns(periodLabel) {
       key: "patron",
       label: "Patron",
       sortable: false,
+      hideable: false,
       render: renderPatronIdentityCell,
       exportValue: getPatronIdentityText,
     },

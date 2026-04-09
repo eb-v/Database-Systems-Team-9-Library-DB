@@ -61,7 +61,9 @@ export function PopularityReportsTable({
   periodLabel,
   sort,
   sortDirection,
+  hiddenColumnKeys,
   onSortChange,
+  onColumnVisibilityChange,
 }) {
   const columns = getPopularityColumns(periodLabel);
 
@@ -72,7 +74,9 @@ export function PopularityReportsTable({
       sortDirection={sortDirection}
       data={data}
       columns={columns}
+      hiddenColumnKeys={hiddenColumnKeys}
       onSortChange={onSortChange}
+      onColumnVisibilityChange={onColumnVisibilityChange}
     />
   );
 }
@@ -83,6 +87,7 @@ export function getPopularityColumns(periodLabel) {
       key: "item_name",
       label: "Item",
       sortable: false,
+      hideable: false,
       render: renderPopularityIdentityCell,
       exportValue: getPopularityIdentityText,
     },
