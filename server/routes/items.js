@@ -39,13 +39,13 @@ async function addItem(req, res) {
                 await db.query(
                     `INSERT INTO Book (Item_ID, author_firstName, author_lastName, publisher, language, year_published, Book_damage_fine, Book_loss_fine, genre)
                      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-                    [itemId, author_firstName, author_lastName, publisher, language, year_published, book_damage_fine, book_loss_fine, book_genre]
+                    [itemId, author_firstName, author_lastName, publisher, language, year_published, policy.damage, policy.loss, book_genre]
                 );
             } else if (item_type === 2) {
                 await db.query(
                     `INSERT INTO CD (Item_ID, CD_type, rating, release_date, CD_damage_fine, CD_loss_fine, genre)
                      VALUES (?, ?, ?, ?, ?, ?, ?)`,
-                    [itemId, cd_type, rating, release_date, cd_damage_fine, cd_loss_fine, cd_genre]
+                    [itemId, cd_type, rating, release_date, policy.damage, policy.loss, cd_genre]
                 );
             } else if (item_type === 3) {
                 await db.query(
@@ -86,7 +86,7 @@ async function getItems(req, res) {
                 b.author_firstName, b.author_lastName, b.publisher, b.language, b.year_published, b.Book_damage_fine, b.Book_loss_fine, b.genre AS book_genre,
                 c.CD_type, c.rating, c.release_date, c.CD_damage_fine, c.CD_loss_fine, c.genre AS cd_genre,
                 d.Device_type, d.Device_damage_fine, d.Device_loss_fine,
-                COUNT(cp.Copy_ID) AS total_copies,
+                SUM(CASE WHEN cp.Copy_status != 0 THEN 1 ELSE 0 END) AS total_copies,
                 SUM(CASE WHEN cp.Copy_status = 1 THEN 1 ELSE 0 END) AS available_copies
             FROM Item i
             LEFT JOIN Book b ON i.Item_ID = b.Item_ID
@@ -147,11 +147,13 @@ async function getItemById(req, res) {
             year_published: rows[0].year_published,
             Book_damage_fine: rows[0].Book_damage_fine,
             Book_loss_fine: rows[0].Book_loss_fine,
+            book_genre: rows[0].book_genre,
             CD_type: rows[0].CD_type,
             rating: rows[0].rating,
             release_date: rows[0].release_date,
             CD_damage_fine: rows[0].CD_damage_fine,
             CD_loss_fine: rows[0].CD_loss_fine,
+            cd_genre: rows[0].cd_genre,
             Device_type: rows[0].Device_type,
             Device_damage_fine: rows[0].Device_damage_fine,
             Device_loss_fine: rows[0].Device_loss_fine,
@@ -237,12 +239,17 @@ async function deleteCopy(req, res) {
 
         // check the copy exists and belongs to the item
         const [copyRows] = await db.query(
-            `SELECT Copy_ID FROM Copy WHERE Copy_ID = ? AND Item_ID = ?`,
+            `SELECT Copy_ID, Copy_status FROM Copy WHERE Copy_ID = ? AND Item_ID = ?`,
             [copyId, itemId]
         );
         if (copyRows.length === 0) {
             res.writeHead(404);
             return res.end(JSON.stringify({ error: 'Copy not found' }));
+        }
+
+        if (copyRows[0].Copy_status === 2) {
+            res.writeHead(400);
+            return res.end(JSON.stringify({ error: 'Cannot remove a copy that is currently checked out' }));
         }
 
         // soft delete — set Copy_status to 0 (removed from circulation) instead of deleting the row

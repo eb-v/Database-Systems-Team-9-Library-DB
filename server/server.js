@@ -165,6 +165,12 @@ const server = http.createServer((req, res) => {
             });
         });
 
+    // any logged-in user can query available time slots for a date + duration
+    } else if (req.method === 'GET' && req.url.startsWith('/api/reservations/available')) {
+        verifyToken(req, res, () => {
+            rooms.getAvailableSlots(req, res);
+        });
+
     // any logged-in user can cancel their own reservation
     } else if (req.method === 'DELETE' && req.url.startsWith('/api/reservations/')) {
         verifyToken(req, res, () => {

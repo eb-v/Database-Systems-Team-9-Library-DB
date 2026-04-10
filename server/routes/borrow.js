@@ -29,6 +29,19 @@ async function borrowItem(req, res) {
                 return res.end(JSON.stringify({ error: 'Borrowing is restricted due to outstanding fees. Please pay your fees to restore borrowing access.' }));
             }
 
+            // step 1b — enforce borrow limits by role. staff (role 1) can have 5 items, patrons (role 2) can have 3
+            const borrowLimit = req.user.role === 1 ? 5 : 3;
+            const [activeBorrows] = await db.query(
+                `SELECT COUNT(DISTINCT bi.Copy_ID) AS count FROM BorrowedItem bi
+                 JOIN Copy cp ON bi.Copy_ID = cp.Copy_ID
+                 WHERE bi.Person_ID = ? AND cp.Copy_status = 2`,
+                [person_id]
+            );
+            if (activeBorrows[0].count >= borrowLimit) {
+                res.writeHead(400);
+                return res.end(JSON.stringify({ error: `Borrow limit reached. You can have at most ${borrowLimit} items checked out at a time.` }));
+            }
+
             // step 2 — find the best available copy. prefer copies with no active holds,
             // then fall back to a copy where this patron is first in the hold queue
             const [availableCopies] = await db.query(
@@ -125,10 +138,11 @@ async function borrowItem(req, res) {
                 );
             }
 
-            // step 5 — calculate borrow date (today) and return-by date (2 weeks from today)
+            // step 5 — calculate borrow date (today) and return-by date. staff get 2 weeks, patrons get 1 week
             const borrowDate = new Date();
             const returnByDate = new Date();
-            returnByDate.setDate(returnByDate.getDate() + 14);
+            const borrowDays = req.user.role === 1 ? 14 : 7;
+            returnByDate.setDate(returnByDate.getDate() + borrowDays);
 
             // step 6 — insert into BorrowedItem
             const [result] = await db.query(
