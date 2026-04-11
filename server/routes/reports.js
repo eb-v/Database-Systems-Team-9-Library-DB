@@ -2,7 +2,7 @@ const db = require('../db');
 const { URL } = require('url');
 
 const DEFAULT_LIMIT = 25;
-const PERIOD_TYPES = ['month', 'quarter', 'year', 'all'];
+const PERIOD_TYPES = ['custom', 'month', 'quarter', 'year', 'all'];
 
 const POPULARITY_SORTS = [
     'times_checked_out',
@@ -16,6 +16,7 @@ const POPULARITY_SORTS = [
     'active_holds',
     'demand_ratio',
 ];
+const POPULARITY_ALLOWED_SORTS = [...POPULARITY_SORTS, 'recommended_additional_copies'];
 
 const FEES_SORTS = [
     'unpaid_total',
@@ -52,17 +53,22 @@ const STOCK_RULES = {
 };
 
 function getSearchParams(req) {
-    const host = req.headers.host || 'localhost';
+    const host = req.headers.host || 'localhost:3000';
     return new URL(req.url, `http://${host}`).searchParams;
 }
 
-function parsePositiveInt(value, fallback = DEFAULT_LIMIT) {
+function parseInteger(value) {
     const parsed = parseInt(value, 10);
+    return Number.isInteger(parsed) ? parsed : null;
+}
+
+function parsePositiveInt(value, fallback = DEFAULT_LIMIT) {
+    const parsed = parseInteger(value);
     return Number.isInteger(parsed) && parsed > 0 ? parsed : fallback;
 }
 
 function parseNonNegativeInt(value, fallback = 0) {
-    const parsed = parseInt(value, 10);
+    const parsed = parseInteger(value);
     return Number.isInteger(parsed) && parsed >= 0 ? parsed : fallback;
 }
 
@@ -71,8 +77,7 @@ function parseOptionalInt(value) {
         return null;
     }
 
-    const parsed = parseInt(value, 10);
-    return Number.isInteger(parsed) ? parsed : null;
+    return parseInteger(value);
 }
 
 function parseOptionalNumber(value) {
@@ -105,6 +110,10 @@ function getCurrentQuarter() {
 }
 
 function parsePeriodValue(periodType, value) {
+    if (periodType === 'custom' || periodType === 'all') {
+        return null;
+    }
+
     const parsed = parseOptionalInt(value);
 
     if (periodType === 'month') {
@@ -121,6 +130,15 @@ function parsePeriodValue(periodType, value) {
     }
 
     return null;
+}
+
+function parseOptionalDate(value) {
+    if (!value) {
+        return null;
+    }
+
+    const parsed = new Date(value);
+    return Number.isNaN(parsed.getTime()) ? null : formatSqlDate(parsed);
 }
 
 function getPeriodDateRange(periodType, periodValue) {
@@ -170,12 +188,22 @@ function sendReportError(res, label, err) {
 
 function getPeriodFilters(searchParams) {
     const periodType = parsePeriodType(searchParams.get('periodType'));
+    const customStart = parseOptionalDate(searchParams.get('customStart'));
+    const customEnd = parseOptionalDate(searchParams.get('customEnd'));
     const periodValue = parsePeriodValue(periodType, searchParams.get('periodValue'));
-    const { periodStart, periodEnd } = getPeriodDateRange(periodType, periodValue);
+    const { periodStart, periodEnd } =
+        periodType === 'custom'
+            ? {
+                periodStart: customStart,
+                periodEnd: customEnd,
+            }
+            : getPeriodDateRange(periodType, periodValue);
 
     return {
         periodType,
         periodValue,
+        customStart,
+        customEnd,
         periodStart,
         periodEnd,
     };
@@ -186,11 +214,7 @@ function getPopularityFilters(searchParams) {
         ...getPeriodFilters(searchParams),
         type: parseOptionalInt(searchParams.get('type')),
         limit: parsePositiveInt(searchParams.get('limit')),
-        orderBy: pickSort(
-            searchParams,
-            [...POPULARITY_SORTS, 'recommended_additional_copies'],
-            'times_checked_out'
-        ),
+        orderBy: pickSort(searchParams, POPULARITY_ALLOWED_SORTS, 'times_checked_out'),
         orderDirection: parseSortDirection(searchParams.get('direction')),
     };
 }
@@ -225,11 +249,7 @@ function addStockRecommendation(row) {
     const utilizationPressure = getUtilizationPressure(row);
     const holdPressure = getHoldPressure(row);
     const additionalCopies = Math.max(borrowPressure, utilizationPressure, holdPressure);
-    const reasons = [];
-
-    if (borrowPressure > 0) reasons.push('high borrow rate');
-    if (utilizationPressure > 0) reasons.push('high utilization');
-    if (holdPressure > 0) reasons.push('hold pressure');
+    const reasons = getRecommendationReasons(borrowPressure, utilizationPressure, holdPressure);
 
     return {
         ...row,
@@ -244,6 +264,16 @@ function addStockRecommendation(row) {
                 ? `Triggered by ${reasons.join(', ')}.`
                 : 'No increase recommended right now.',
     };
+}
+
+function getRecommendationReasons(borrowPressure, utilizationPressure, holdPressure) {
+    const reasons = [];
+
+    if (borrowPressure > 0) reasons.push('high borrow rate');
+    if (utilizationPressure > 0) reasons.push('high utilization');
+    if (holdPressure > 0) reasons.push('hold pressure');
+
+    return reasons;
 }
 
 function getBorrowRatePressure(row) {

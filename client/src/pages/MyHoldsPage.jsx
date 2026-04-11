@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
+import ItemImage from "../components/ItemImage";
 import { apiFetch } from "../api";
 
 export default function MyHoldsPage() {
@@ -30,7 +31,7 @@ export default function MyHoldsPage() {
       }
       // only show active holds (1 = waiting, 2 = ready to checkout)
       setHolds(data.filter((h) => h.hold_status === 1 || h.hold_status === 2));
-    } catch (err) {
+    } catch {
       setError("Unable to connect to the server.");
     } finally {
       setLoading(false);
@@ -55,7 +56,7 @@ export default function MyHoldsPage() {
       }
       setMessage("Hold cancelled successfully.");
       fetchHolds();
-    } catch (err) {
+    } catch {
       setMessage("Unable to connect to the server.");
     }
   };
@@ -104,20 +105,23 @@ export default function MyHoldsPage() {
             const status = getStatusLabel(hold.hold_status);
             return (
               <div key={hold.Hold_ID} className="bg-white rounded-xl shadow-md p-5">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <p className="text-xs text-green-800 font-semibold uppercase tracking-wide mb-1">
-                      {getItemTypeLabel(hold.Item_type)}
-                    </p>
-                    <h3 className="text-lg font-bold text-gray-800">{hold.Item_name}</h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                      Queue position: {hold.queue_status + 1}
-                    </p>
-                    {hold.hold_status === 2 && hold.expiry_date && (
-                      <p className="text-sm text-green-700 mt-1">
-                        Expires: {new Date(hold.expiry_date).toLocaleDateString()}
+                <div className="flex items-start justify-between gap-4">
+                  <div className="flex min-w-0 items-start gap-4">
+                    <ItemImage itemId={hold.Item_ID} itemName={hold.Item_name} />
+                    <div className="min-w-0">
+                      <p className="text-xs text-green-800 font-semibold uppercase tracking-wide mb-1">
+                        {getItemTypeLabel(hold.Item_type)}
                       </p>
-                    )}
+                      <h3 className="text-lg font-bold text-gray-800">{hold.Item_name}</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        Queue position: {hold.queue_status + 1}
+                      </p>
+                      {hold.hold_status === 2 && hold.expiry_date && (
+                        <p className="text-sm text-green-700 mt-1">
+                          Expires: {new Date(hold.expiry_date).toLocaleDateString()}
+                        </p>
+                      )}
+                    </div>
                   </div>
                   <span className={`text-xs font-semibold px-3 py-1 rounded-full ${status.color}`}>
                     {status.label}

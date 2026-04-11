@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
+import ItemImage from "../components/ItemImage";
 import { apiFetch } from "../api";
 
 export default function RentADevicePage() {
@@ -45,7 +46,7 @@ export default function RentADevicePage() {
       setDevices(devicesData);
       // only active device borrows
       setBorrows(borrowsData.filter((b) => b.Copy_status === 2 && b.Item_type === 3));
-    } catch (err) {
+    } catch {
       setError("Unable to connect to the server.");
     } finally {
       setLoading(false);
@@ -74,7 +75,7 @@ export default function RentADevicePage() {
       }
       setMessage(`Device checked out successfully. Return by ${new Date(data.return_by).toLocaleDateString()}.`);
       fetchData();
-    } catch (err) {
+    } catch {
       setMessage("Unable to connect to the server.");
     }
   };
@@ -101,7 +102,7 @@ export default function RentADevicePage() {
       if (data.fees_charged?.loss > 0) msg += ` Loss fee: $${data.fees_charged.loss}.`;
       setMessage(msg);
       fetchData();
-    } catch (err) {
+    } catch {
       setMessage("Unable to connect to the server.");
     }
   };
@@ -148,15 +149,21 @@ export default function RentADevicePage() {
             {devices.length === 0 && <p className="text-gray-600">No devices found.</p>}
             <div className="space-y-4">
               {devices.map((device) => (
-                <div key={device.Item_ID} className="bg-white rounded-xl shadow-md p-5 flex justify-between items-center">
-                  <div>
-                    <p className="text-xs text-green-800 font-semibold uppercase tracking-wide mb-1">
-                      {device.Device_type || "Device"}
-                    </p>
-                    <h3 className="text-lg font-bold text-gray-800">{device.Item_name}</h3>
-                    <p className="text-sm text-gray-500 mt-1">
-                      {device.available_copies} of {device.total_copies} available
-                    </p>
+                <div key={device.Item_ID} className="bg-white rounded-xl shadow-md p-5 flex justify-between items-center gap-4">
+                  <div className="flex min-w-0 items-center gap-4">
+                    <ItemImage
+                      itemId={device.Item_ID}
+                      itemName={device.Item_name}
+                    />
+                    <div className="min-w-0">
+                      <p className="text-xs text-green-800 font-semibold uppercase tracking-wide mb-1">
+                        {device.Device_type || "Device"}
+                      </p>
+                      <h3 className="text-lg font-bold text-gray-800">{device.Item_name}</h3>
+                      <p className="text-sm text-gray-500 mt-1">
+                        {device.available_copies} of {device.total_copies} available
+                      </p>
+                    </div>
                   </div>
                   <button
                     onClick={() => handleBorrow(device.Item_ID)}
@@ -182,6 +189,12 @@ function BorrowCard({ borrow, onReturn }) {
 
   return (
     <div className="bg-white rounded-xl shadow-md p-5">
+      <div className="flex items-start gap-4">
+        <ItemImage
+          itemId={borrow.Item_ID}
+          itemName={borrow.Item_name}
+        />
+        <div className="min-w-0 flex-1">
       <p className="text-xs text-green-800 font-semibold uppercase tracking-wide mb-1">
         {borrow.Device_type || "Device"}
       </p>
@@ -193,6 +206,8 @@ function BorrowCard({ borrow, onReturn }) {
         Return by: {new Date(borrow.returnBy_date).toLocaleDateString()}
         {overdue && " — Overdue"}
       </p>
+        </div>
+      </div>
 
       <div className="mt-4 flex flex-col gap-2">
         <div className="flex gap-4 text-sm text-gray-600">

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
+import ItemImage from "../components/ItemImage";
 import { apiFetch } from "../api";
 
 export default function ItemDetailPage() {
@@ -27,7 +28,7 @@ export default function ItemDetailPage() {
           return;
         }
         setItem(data);
-      } catch (err) {
+      } catch {
         setError("Unable to connect to the server.");
       } finally {
         setLoading(false);
@@ -56,7 +57,7 @@ export default function ItemDetailPage() {
         return;
       }
       setMessage(`Item borrowed successfully! Return by: ${data.return_by}`);
-    } catch (err) {
+    } catch {
       setMessage("Unable to connect to the server.");
     }
   };
@@ -78,7 +79,7 @@ export default function ItemDetailPage() {
         return;
       }
       setMessage(`Hold placed successfully! Queue position: ${data.queue_position}`);
-    } catch (err) {
+    } catch {
       setMessage("Unable to connect to the server.");
     }
   };
@@ -99,6 +100,13 @@ export default function ItemDetailPage() {
         </button>
 
         <div className="bg-white rounded-2xl shadow-md p-8">
+          <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+            <ItemImage
+              itemId={item.Item_ID}
+              itemName={item.Item_name}
+              className="mx-auto h-32 w-24 sm:mx-0"
+            />
+            <div className="flex-1">
           <p className="text-xs text-green-800 font-semibold uppercase tracking-wide mb-1">
             {item.Item_type === 1 ? "Book" : item.Item_type === 2 ? "CD" : "Item"}
           </p>
@@ -125,7 +133,7 @@ export default function ItemDetailPage() {
           <div className="mt-6 pt-6 border-t border-gray-100">
             <p className="text-sm text-gray-600">
               <span className="font-semibold">{availableCount}</span> of{" "}
-              <span className="font-semibold">{item.copies.length}</span> copies available
+              <span className="font-semibold">{item.copies.filter((c) => c.Copy_status !== 0).length}</span> copies available
             </p>
           </div>
 
@@ -151,6 +159,8 @@ export default function ItemDetailPage() {
               {message}
             </p>
           )}
+            </div>
+          </div>
         </div>
       </div>
     </div>

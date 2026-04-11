@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
+import ItemImage from "../components/ItemImage";
 import { apiFetch } from "../api";
 import { getSessionRoleState } from "../auth";
 
@@ -40,9 +41,9 @@ export default function CatalogPage() {
         return;
       }
 
-      // filter out devices (type 3) since they are handled separately
-      setResults(data.filter((item) => item.Item_type !== 3));
-    } catch (err) {
+      // filter out devices (type 3) and items with no active copies
+      setResults(data.filter((item) => item.Item_type !== 3 && Number(item.total_copies) > 0));
+    } catch {
       setError("Unable to connect to the server.");
     } finally {
       setLoading(false);
@@ -126,9 +127,10 @@ export default function CatalogPage() {
             <div
               key={item.Item_ID}
               onClick={() => navigate(`/catalog/${item.Item_ID}`)}
-              className="bg-white rounded-xl shadow-md p-5 cursor-pointer hover:shadow-lg transition flex justify-between items-center"
+              className="bg-white rounded-xl shadow-md p-5 cursor-pointer hover:shadow-lg transition flex items-center gap-4"
             >
-              <div>
+              <ItemImage itemId={item.Item_ID} itemName={item.Item_name} />
+              <div className="min-w-0 flex-1">
                 <p className="text-xs text-green-800 font-semibold uppercase tracking-wide mb-1">
                   {getItemTypeLabel(item.Item_type)}
                 </p>
@@ -142,7 +144,7 @@ export default function CatalogPage() {
                   <p className="text-sm text-gray-500 mt-1">Rating: {item.rating}</p>
                 )}
               </div>
-              <div className="text-right">
+              <div className="shrink-0 text-right">
                 <p className="text-sm font-semibold text-green-800">
                   {item.available_copies} available
                 </p>

@@ -1,6 +1,7 @@
 import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
+import ItemImage from "../components/ItemImage";
 import { apiFetch } from "../api";
 
 export default function MyBorrowsPage() {
@@ -30,7 +31,7 @@ export default function MyBorrowsPage() {
       }
       // only show active borrows (Copy_status 2 = checked out)
       setBorrows(data.filter((b) => b.Copy_status === 2));
-    } catch (err) {
+    } catch {
       setError("Unable to connect to the server.");
     } finally {
       setLoading(false);
@@ -63,7 +64,7 @@ export default function MyBorrowsPage() {
       if (data.fees_charged.loss > 0) msg += ` Loss fee: $${data.fees_charged.loss}.`;
       setMessage(msg);
       fetchBorrows();
-    } catch (err) {
+    } catch {
       setMessage("Unable to connect to the server.");
     }
   };
@@ -127,8 +128,9 @@ function BorrowCard({ borrow, onReturn, getItemTypeLabel, isOverdue }) {
 
   return (
     <div className="bg-white rounded-xl shadow-md p-5">
-      <div className="flex justify-between items-start">
-        <div>
+      <div className="flex items-start gap-4">
+        <ItemImage itemId={borrow.Item_ID} itemName={borrow.Item_name} />
+        <div className="min-w-0 flex-1">
           <p className="text-xs text-green-800 font-semibold uppercase tracking-wide mb-1">
             {getItemTypeLabel(borrow.Item_type)}
           </p>
