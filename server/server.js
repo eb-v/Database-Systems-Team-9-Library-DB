@@ -246,6 +246,14 @@ const server = http.createServer((req, res) => {
                 staff.updateStaffPermissions(req, res);
             });
         });
+
+    // admin-only — edit a staff member's personal info
+    } else if (req.method === 'PATCH' && req.url.startsWith('/api/staff/')) {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                staff.updateStaffInfo(req, res);
+            });
+        });
     // admin-only — reports on popularity
     } else if (req.method === 'GET' && req.url.startsWith('/api/reports/popularity')) {
         verifyToken(req, res, () => {
