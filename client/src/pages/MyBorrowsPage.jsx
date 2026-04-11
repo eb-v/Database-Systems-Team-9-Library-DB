@@ -59,11 +59,12 @@ export default function MyBorrowsPage() {
         setMessage({ text: data.error || "Failed to return item.", success: false });
         return;
       }
+      const hasFee = data.fees_charged.late > 0 || data.fees_charged.damage > 0 || data.fees_charged.loss > 0;
       let msg = "Item returned successfully.";
       if (data.fees_charged.late > 0) msg += ` Late fee: $${data.fees_charged.late}.`;
       if (data.fees_charged.damage > 0) msg += ` Damage fee: $${data.fees_charged.damage}.`;
       if (data.fees_charged.loss > 0) msg += ` Loss fee: $${data.fees_charged.loss}.`;
-      setMessage({ text: msg, success: true });
+      setMessage({ text: msg, success: !hasFee });
       fetchBorrows();
     } catch {
       setMessage({ text: "Unable to connect to the server.", success: false });
