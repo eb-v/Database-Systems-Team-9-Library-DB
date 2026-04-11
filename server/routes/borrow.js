@@ -321,7 +321,7 @@ async function getBorrowedItems(req, res) {
                AND bi.BorrowedItem_ID = (
                  SELECT MAX(bi2.BorrowedItem_ID)
                  FROM BorrowedItem bi2
-                 WHERE bi2.Copy_ID = bi.Copy_ID AND bi2.Person_ID = bi.Person_ID
+                 WHERE bi2.Copy_ID = bi.Copy_ID
                )
              ORDER BY bi.borrow_date DESC`,
             [personId]

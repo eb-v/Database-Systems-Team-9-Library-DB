@@ -44,7 +44,7 @@ export default function RentADevicePage() {
         return;
       }
 
-      setDevices(devicesData.filter((d) => d.available_copies > 0));
+      setDevices(devicesData.filter((d) => d.total_copies > 0));
       // only active device borrows
       setBorrows(borrowsData.filter((b) => b.Copy_status === 2 && b.Item_type === 3));
     } catch {
