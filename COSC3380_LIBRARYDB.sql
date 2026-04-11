@@ -189,8 +189,7 @@ BEGIN
     JOIN Copy c ON h.Copy_ID = c.Copy_ID
     WHERE c.Item_ID = NEW.Item_ID
       AND h.hold_status = 1
-      AND h.queue_status = 0
-    ORDER BY h.hold_date ASC
+    ORDER BY h.queue_status ASC, h.hold_date ASC
     LIMIT 1;
 
     IF next_hold_id IS NOT NULL THEN
