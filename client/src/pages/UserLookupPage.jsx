@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import NavigationBar from "../components/NavigationBar";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
+import Banner from "../components/Banner";
 
 const getAccountStatusLabel = (status) => (Number(status) === 1 ? "Active" : "Inactive");
 const getBorrowStatusLabel  = (status) => (Number(status) === 1 ? "Good Standing" : "Restricted");
@@ -21,7 +22,7 @@ export default function UserLookupPage() {
   const [userRecord,    setUserRecord]    = useState(null);
   const [summary,       setSummary]       = useState(null);
   const [results,       setResults]       = useState(null);
-  const [message,       setMessage]       = useState("");
+  const [message,       setMessage]       = useState({ text: "", success: true });
   const [allUsers,      setAllUsers]      = useState([]);
   const [usersLoading,  setUsersLoading]  = useState(true);
 
@@ -85,13 +86,13 @@ export default function UserLookupPage() {
   };
 
   const handleSearch = async () => {
-    setMessage("");
+    setMessage({ text: "", success: true });
     setUserRecord(null);
     setSummary(null);
     setResults(null);
 
     if (!searchValue.trim()) {
-      setMessage("Please enter a search value.");
+      setMessage({ text: "Please enter a search value.", success: false });
       return;
     }
 
@@ -101,22 +102,22 @@ export default function UserLookupPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await response.json();
-      if (!response.ok) { setMessage(data.error || "Failed to load user record."); return; }
+      if (!response.ok) { setMessage({ text: data.error || "Failed to load user record.", success: false }); return; }
 
       if (data.results) {
         setResults(data.results);
-        setMessage(`${data.results.length} result${data.results.length !== 1 ? "s" : ""} found.`);
+        setMessage({ text: `${data.results.length} result${data.results.length !== 1 ? "s" : ""} found.`, success: true });
       } else {
         setUserRecord(data.person);
         setSummary(data.summary);
       }
     } catch {
-      setMessage("Unable to connect to the server.");
+      setMessage({ text: "Unable to connect to the server.", success: false });
     }
   };
 
   const handleSelectResult = async (personId) => {
-    setMessage("");
+    setMessage({ text: "", success: true });
     setResults(null);
     try {
       const response = await apiFetch(
@@ -124,11 +125,11 @@ export default function UserLookupPage() {
         { headers: { Authorization: `Bearer ${token}` } }
       );
       const data = await response.json();
-      if (!response.ok) { setMessage(data.error || "Failed to load user record."); return; }
+      if (!response.ok) { setMessage({ text: data.error || "Failed to load user record.", success: false }); return; }
       setUserRecord(data.person);
       setSummary(data.summary);
     } catch {
-      setMessage("Unable to connect to the server.");
+      setMessage({ text: "Unable to connect to the server.", success: false });
     }
   };
 
@@ -157,7 +158,7 @@ export default function UserLookupPage() {
             <input
               type="text"
               value={searchValue}
-              onChange={(e) => { setSearchValue(e.target.value); setResults(null); setMessage(""); setUserRecord(null); setSummary(null); }}
+              onChange={(e) => { setSearchValue(e.target.value); setResults(null); setMessage({ text: "", success: true }); setUserRecord(null); setSummary(null); }}
               onKeyDown={(e) => e.key === "Enter" && handleSearch()}
               placeholder="Search by name, username, email, phone, or ID..."
               className="w-full border border-gray-300 rounded-lg px-4 py-3"
@@ -195,11 +196,7 @@ export default function UserLookupPage() {
             </div>
           </div>
 
-          {message && (
-            <p className={`text-sm font-medium ${message.includes("loaded") || message.includes("found") ? "text-green-700" : "text-red-700"}`}>
-              {message}
-            </p>
-          )}
+          <Banner message={message} onDismiss={() => setMessage({ text: "", success: true })} />
 
           {/* ── User details + panels ── */}
           {userRecord && (
@@ -210,7 +207,7 @@ export default function UserLookupPage() {
               <div className="flex items-center justify-between">
                 <h2 className="text-xl font-semibold text-green-900">User Details</h2>
                 <button
-                  onClick={() => { setUserRecord(null); setSummary(null); setMessage(""); }}
+                  onClick={() => { setUserRecord(null); setSummary(null); setMessage({ text: "", success: true }); }}
                   className="text-gray-400 hover:text-gray-600 text-sm"
                 >
                   ✕

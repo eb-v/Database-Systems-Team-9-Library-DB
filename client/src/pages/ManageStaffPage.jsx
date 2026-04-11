@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 import { apiFetch } from "../api";
+import Banner from "../components/Banner";
 
 const EMPTY_REGISTER_FORM = {
   first_name: "", last_name: "", email: "", username: "",
@@ -22,12 +23,12 @@ export default function ManageStaffPage() {
   const [selected,    setSelected]    = useState(null);   // full member object
   const [editForm,    setEditForm]    = useState({});
   const [editLoading, setEditLoading] = useState(false);
-  const [editMessage, setEditMessage] = useState("");
+  const [editMessage, setEditMessage] = useState({ text: "", success: true });
 
   // ── Register ─────────────────────────────────────────────────────────────
   const [registerOpen,    setRegisterOpen]    = useState(false);
   const [registerForm,    setRegisterForm]    = useState(EMPTY_REGISTER_FORM);
-  const [registerMessage, setRegisterMessage] = useState("");
+  const [registerMessage, setRegisterMessage] = useState({ text: "", success: true });
   const [registerLoading, setRegisterLoading] = useState(false);
 
   const fetchStaff = async () => {
@@ -58,24 +59,24 @@ export default function ManageStaffPage() {
       birthday:     member.birthday ? member.birthday.split("T")[0] : "",
       password:     "",
     });
-    setEditMessage("");
+    setEditMessage({ text: "", success: true });
   };
 
   const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
   const phoneRegex = /^\+?[\d\s\-().]{7,15}$/;
 
   const handleSaveEdit = async () => {
-    setEditMessage("");
+    setEditMessage({ text: "", success: true });
 
-    if (!editForm.first_name.trim()) return setEditMessage("First name is required.");
-    if (!editForm.last_name.trim())  return setEditMessage("Last name is required.");
-    if (!emailRegex.test(editForm.email)) return setEditMessage("Please enter a valid email address.");
-    if (!phoneRegex.test(editForm.phone_number)) return setEditMessage("Please enter a valid phone number.");
-    if (!editForm.birthday) return setEditMessage("Birthday is required.");
-    if (new Date(editForm.birthday) > new Date()) return setEditMessage("Birthday cannot be in the future.");
+    if (!editForm.first_name.trim()) return setEditMessage({ text: "First name is required.", success: false });
+    if (!editForm.last_name.trim())  return setEditMessage({ text: "Last name is required.", success: false });
+    if (!emailRegex.test(editForm.email)) return setEditMessage({ text: "Please enter a valid email address.", success: false });
+    if (!phoneRegex.test(editForm.phone_number)) return setEditMessage({ text: "Please enter a valid phone number.", success: false });
+    if (!editForm.birthday) return setEditMessage({ text: "Birthday is required.", success: false });
+    if (new Date(editForm.birthday) > new Date()) return setEditMessage({ text: "Birthday cannot be in the future.", success: false });
 
     setEditLoading(true);
-    setEditMessage("");
+    setEditMessage({ text: "", success: true });
     try {
       const r    = await apiFetch(`/api/staff/${selected.Person_ID}`, {
         method: "PATCH",
@@ -83,13 +84,13 @@ export default function ManageStaffPage() {
         body: JSON.stringify(editForm),
       });
       const data = await r.json();
-      if (!r.ok) { setEditMessage(data.error || "Failed to save changes."); return; }
-      setEditMessage("Changes saved successfully.");
+      if (!r.ok) { setEditMessage({ text: data.error || "Failed to save changes.", success: false }); return; }
+      setEditMessage({ text: "Changes saved successfully.", success: true });
       await fetchStaff();
       // re-sync selected with updated data
       setSelected((prev) => ({ ...prev, ...editForm, First_name: editForm.first_name, Last_name: editForm.last_name }));
     } catch {
-      setEditMessage("Unable to connect to the server.");
+      setEditMessage({ text: "Unable to connect to the server.", success: false });
     } finally {
       setEditLoading(false);
     }
@@ -97,19 +98,19 @@ export default function ManageStaffPage() {
 
   const handleRegister = async (e) => {
     e.preventDefault();
-    setRegisterMessage("");
+    setRegisterMessage({ text: "", success: true });
 
     const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     const phoneRegex = /^\+?[\d\s\-().]{7,15}$/;
 
     if (!emailRegex.test(registerForm.email))
-      return setRegisterMessage("Please enter a valid email address.");
+      return setRegisterMessage({ text: "Please enter a valid email address.", success: false });
     if (!phoneRegex.test(registerForm.phone_number))
-      return setRegisterMessage("Please enter a valid phone number.");
+      return setRegisterMessage({ text: "Please enter a valid phone number.", success: false });
     if (!registerForm.birthday)
-      return setRegisterMessage("Birthday is required.");
+      return setRegisterMessage({ text: "Birthday is required.", success: false });
     if (new Date(registerForm.birthday) > new Date())
-      return setRegisterMessage("Birthday cannot be in the future.");
+      return setRegisterMessage({ text: "Birthday cannot be in the future.", success: false });
 
     setRegisterLoading(true);
     try {
@@ -119,13 +120,13 @@ export default function ManageStaffPage() {
         body: JSON.stringify({ ...registerForm, staff_permissions: 1 }),
       });
       const data = await r.json();
-      if (!r.ok) { setRegisterMessage(data.error || "Failed to register staff."); return; }
-      setRegisterMessage("Staff member registered successfully.");
+      if (!r.ok) { setRegisterMessage({ text: data.error || "Failed to register staff.", success: false }); return; }
+      setRegisterMessage({ text: "Staff member registered successfully.", success: true });
       setRegisterForm(EMPTY_REGISTER_FORM);
       setRegisterOpen(false);
       fetchStaff();
     } catch {
-      setRegisterMessage("Unable to connect to the server.");
+      setRegisterMessage({ text: "Unable to connect to the server.", success: false });
     } finally {
       setRegisterLoading(false);
     }
@@ -162,7 +163,7 @@ export default function ManageStaffPage() {
               <p className="text-gray-600 mt-1">Search for a staff member to edit their profile, or register a new one.</p>
             </div>
             <button
-              onClick={() => { setRegisterOpen((o) => !o); setRegisterMessage(""); }}
+              onClick={() => { setRegisterOpen((o) => !o); setRegisterMessage({ text: "", success: true }); }}
               className="bg-green-800 text-white px-5 py-2.5 rounded-lg font-semibold hover:bg-green-900 shrink-0 ml-4"
             >
               + Register Staff
@@ -175,7 +176,7 @@ export default function ManageStaffPage() {
             <div className="flex items-center justify-between px-6 py-4">
               <h2 className="text-xl font-semibold text-green-900">Register New Staff</h2>
               <button
-                onClick={() => { setRegisterOpen(false); setRegisterMessage(""); }}
+                onClick={() => { setRegisterOpen(false); setRegisterMessage({ text: "", success: true }); }}
                 className="text-gray-400 hover:text-gray-600 text-sm"
               >
                 ✕
@@ -206,9 +207,7 @@ export default function ManageStaffPage() {
                     <input type="date" value={registerForm.birthday} onChange={(e) => setRegisterForm({ ...registerForm, birthday: e.target.value })} className="w-full border border-gray-300 rounded-lg px-4 py-3" required />
                   </Field>
                 </div>
-                {registerMessage && (
-                  <p className={`text-sm font-medium ${registerMessage.includes("success") ? "text-green-700" : "text-red-600"}`}>{registerMessage}</p>
-                )}
+                <Banner message={registerMessage} onDismiss={() => setRegisterMessage({ text: "", success: true })} />
                 <button type="submit" disabled={registerLoading} className="w-full bg-green-900 text-white py-3 rounded-lg font-semibold hover:bg-green-800 disabled:opacity-50">
                   {registerLoading ? "Registering..." : "Register Staff Member"}
                 </button>
@@ -223,7 +222,7 @@ export default function ManageStaffPage() {
               <input
                 type="text"
                 value={searchQuery}
-                onChange={(e) => { setSearchQuery(e.target.value); setSelected(null); setEditMessage(""); }}
+                onChange={(e) => { setSearchQuery(e.target.value); setSelected(null); setEditMessage({ text: "", success: true }); }}
                 placeholder="Search by name, username, email, or ID..."
                 className="w-full border border-gray-300 rounded-lg px-4 py-3"
               />
@@ -266,7 +265,7 @@ export default function ManageStaffPage() {
                       </p>
                     </div>
                     <button
-                      onClick={() => { setSelected(null); setEditMessage(""); }}
+                      onClick={() => { setSelected(null); setEditMessage({ text: "", success: true }); }}
                       className="text-sm text-gray-400 hover:text-gray-600"
                     >
                       ✕
@@ -321,11 +320,7 @@ export default function ManageStaffPage() {
                     </Field>
                   </div>
 
-                  {editMessage && (
-                    <p className={`text-sm font-medium ${editMessage.includes("success") ? "text-green-700" : "text-red-600"}`}>
-                      {editMessage}
-                    </p>
-                  )}
+                  <Banner message={editMessage} onDismiss={() => setEditMessage({ text: "", success: true })} />
 
                   <button
                     onClick={handleSaveEdit}

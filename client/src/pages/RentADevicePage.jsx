@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 import ItemImage from "../components/ItemImage";
 import { apiFetch } from "../api";
+import Banner from "../components/Banner";
 
 export default function RentADevicePage() {
   const navigate = useNavigate();
@@ -10,7 +11,7 @@ export default function RentADevicePage() {
   const [borrows, setBorrows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState({ text: "", success: true });
 
   const token = sessionStorage.getItem("token");
   const personId = sessionStorage.getItem("personId");
@@ -58,7 +59,7 @@ export default function RentADevicePage() {
   }, []);
 
   const handleBorrow = async (itemId) => {
-    setMessage("");
+    setMessage({ text: "", success: true });
     try {
       const response = await apiFetch("/api/borrow", {
         method: "POST",
@@ -70,18 +71,18 @@ export default function RentADevicePage() {
       });
       const data = await response.json();
       if (!response.ok) {
-        setMessage(data.error || "Failed to borrow device.");
+        setMessage({ text: data.error || "Failed to borrow device.", success: false });
         return;
       }
-      setMessage(`Device checked out successfully. Return by ${new Date(data.return_by).toLocaleDateString()}.`);
+      setMessage({ text: `Device checked out successfully. Return by ${new Date(data.return_by).toLocaleDateString()}.`, success: true });
       fetchData();
     } catch {
-      setMessage("Unable to connect to the server.");
+      setMessage({ text: "Unable to connect to the server.", success: false });
     }
   };
 
   const handleReturn = async (borrowedItemId, damaged, lost) => {
-    setMessage("");
+    setMessage({ text: "", success: true });
     try {
       const response = await apiFetch("/api/borrow/return", {
         method: "POST",
@@ -93,17 +94,17 @@ export default function RentADevicePage() {
       });
       const data = await response.json();
       if (!response.ok) {
-        setMessage(data.error || "Failed to return device.");
+        setMessage({ text: data.error || "Failed to return device.", success: false });
         return;
       }
       let msg = "Device returned successfully.";
       if (data.fees_charged?.late > 0) msg += ` Late fee: $${data.fees_charged.late}.`;
       if (data.fees_charged?.damage > 0) msg += ` Damage fee: $${data.fees_charged.damage}.`;
       if (data.fees_charged?.loss > 0) msg += ` Loss fee: $${data.fees_charged.loss}.`;
-      setMessage(msg);
+      setMessage({ text: msg, success: true });
       fetchData();
     } catch {
-      setMessage("Unable to connect to the server.");
+      setMessage({ text: "Unable to connect to the server.", success: false });
     }
   };
 
@@ -124,11 +125,7 @@ export default function RentADevicePage() {
 
         {loading && <p className="text-gray-600">Loading...</p>}
         {error && <p className="text-red-600">{error}</p>}
-        {message && (
-          <p className={`mb-6 text-sm font-medium ${message.includes("success") || message.includes("Successfully") ? "text-green-700" : "text-red-600"}`}>
-            {message}
-          </p>
-        )}
+        <Banner message={message} onDismiss={() => setMessage({ text: "", success: true })} />
 
         {/* currently borrowed devices */}
         {!loading && borrows.length > 0 && (

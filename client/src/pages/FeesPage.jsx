@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 import { useLocation } from "react-router-dom";
 import { apiFetch } from "../api";
+import Banner from "../components/Banner";
 
 const getItemTypeLabel = (type) => {
   switch (Number(type)) {
@@ -48,7 +49,7 @@ export default function PayFeesPage() {
   const [paymentMethod, setPaymentMethod] = useState("");
   const [feeTypeFilter, setFeeTypeFilter] = useState("All");
   const [statusFilter, setStatusFilter] = useState("1");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState({ text: "", success: true });
 
   const navigate = useNavigate();
   const userType = sessionStorage.getItem("userType");
@@ -65,7 +66,7 @@ export default function PayFeesPage() {
 
   useEffect(() => {
     if (!token) {
-      setMessage("No user token found. Please log in again.");
+      setMessage({ text: "No user token found. Please log in again.", success: false });
       return;
     }
 
@@ -79,7 +80,7 @@ export default function PayFeesPage() {
       fetchUserFees(idToUse);
     } catch (error) {
       console.error(error);
-      setMessage("Unable to read user information.");
+      setMessage({ text: "Unable to read user information.", success: false });
     }
   }, [token, queryPersonId, staffView]);
 
@@ -95,14 +96,14 @@ export default function PayFeesPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setMessage(data.error || "Failed to load fees.");
+        setMessage({ text: data.error || "Failed to load fees.", success: false });
         return;
       }
 
       setFees(data);
     } catch (error) {
       console.error(error);
-      setMessage("Unable to connect to the server.");
+      setMessage({ text: "Unable to connect to the server.", success: false });
     }
   };
 
@@ -119,15 +120,15 @@ export default function PayFeesPage() {
   }, [fees, feeTypeFilter, statusFilter]);
 
   const handleProcessPayment = async () => {
-    setMessage("");
+    setMessage({ text: "", success: true });
 
     if (!selectedFeeId) {
-      setMessage("Please select a fee to pay.");
+      setMessage({ text: "Please select a fee to pay.", success: false });
       return;
     }
 
     if (!paymentMethod) {
-      setMessage("Please select a payment method.");
+      setMessage({ text: "Please select a payment method.", success: false });
       return;
     }
 
@@ -149,17 +150,17 @@ export default function PayFeesPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setMessage(data.error || "Failed to process payment.");
+        setMessage({ text: data.error || "Failed to process payment.", success: false });
         return;
       }
 
-      setMessage("Payment processed successfully.");
+      setMessage({ text: "Payment processed successfully.", success: true });
       setSelectedFeeId("");
       setPaymentMethod("");
       fetchUserFees(personId);
     } catch (error) {
       console.error(error);
-      setMessage("Unable to connect to the server.");
+      setMessage({ text: "Unable to connect to the server.", success: false });
     }
   };
 
@@ -337,15 +338,7 @@ export default function PayFeesPage() {
             </button>
           </div>
 
-          {message && (
-            <p
-              className={`text-sm font-medium ${
-                message.includes("success") ? "text-green-700" : "text-red-700"
-              }`}
-            >
-              {message}
-            </p>
-          )}
+          <Banner message={message} onDismiss={() => setMessage({ text: "", success: true })} />
 
           <p className="text-sm text-gray-500 pt-2">
             <span className="text-red-600 font-semibold">*</span> indicates a

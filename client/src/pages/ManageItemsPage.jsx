@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 import { apiFetch } from "../api";
+import Banner from "../components/Banner";
 
 export default function ManageItemsPage() {
   const navigate = useNavigate();
@@ -411,24 +412,7 @@ export default function ManageItemsPage() {
           ← Back
         </button>
 
-        {pageMessage.text && (
-          <div className={`mb-6 flex items-center justify-between gap-3 rounded-lg border px-4 py-3 shadow-sm text-sm font-medium
-            ${pageMessage.success
-              ? "bg-green-50 border-green-200 text-green-800"
-              : "bg-red-50 border-red-200 text-red-800"}`}
-          >
-            <div className="flex items-center gap-2">
-              <span>{pageMessage.success ? "✓" : "✕"}</span>
-              <span>{pageMessage.text}</span>
-            </div>
-            <button
-              onClick={() => setPageMessage({ text: "", success: true })}
-              className="text-current opacity-50 hover:opacity-100"
-            >
-              ✕
-            </button>
-          </div>
-        )}
+        <Banner message={pageMessage} onDismiss={() => setPageMessage({ text: "", success: true })} />
 
         {/*title*/}
         <h1 className="text-3xl font-bold text-green-900 mb-2">
