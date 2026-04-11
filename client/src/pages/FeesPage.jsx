@@ -132,7 +132,7 @@ export default function PayFeesPage() {
       return;
     }
 
-    const methodValue = paymentMethod === "Cash" ? 1 : 2;
+    const methodValue = paymentMethod === "Debit" ? 1 : 2;
 
     try {
       const response = await apiFetch("/api/fees/pay", {
@@ -325,8 +325,8 @@ export default function PayFeesPage() {
                 className="w-full border border-gray-300 rounded-lg px-4 py-3"
               >
                 <option value="">Select payment method</option>
-                <option value="Cash">Cash</option>
-                <option value="Card">Card</option>
+                <option value="Debit">Debit</option>
+                <option value="Credit">Credit</option>
               </select>
             </div>
 
