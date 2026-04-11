@@ -74,6 +74,14 @@ const server = http.createServer((req, res) => {
             });
         });
     
+    // staff-only — list all patrons (most recent first)
+    } else if (req.method === 'GET' && req.url === '/api/users') {
+        verifyToken(req, res, () => {
+            requireRole(1)(req, res, () => {
+                users.listUsers(req, res);
+            });
+        });
+
     // staff-only — look up a user and view summary info
     // any logged-in user can look up a person — patrons restricted to their own record
     } else if (req.method === 'GET' && req.url.startsWith('/api/users/lookup')) {

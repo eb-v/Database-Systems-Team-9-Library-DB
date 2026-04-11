@@ -137,4 +137,21 @@ async function lookupUser(req, res) {
     }
 }
 
-module.exports = { lookupUser };
+async function listUsers(req, res) {
+    try {
+        const [rows] = await db.query(
+            `SELECT Person_ID, First_name, Last_name, email, username
+             FROM Person
+             WHERE role = 2
+             ORDER BY Person_ID DESC
+             LIMIT 50`
+        );
+        res.writeHead(200);
+        res.end(JSON.stringify(rows));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to fetch users', details: err.message }));
+    }
+}
+
+module.exports = { lookupUser, listUsers };
