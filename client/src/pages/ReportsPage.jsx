@@ -515,7 +515,7 @@ export default function ReportsPage() {
         </div>
 
         {reportType === "revenue" ? (
-          <RevenueKPICards kpis={revenueKpis} loading={revenueKpisLoading} periodLabel={reportPeriodLabel} />
+          <RevenueKPICards kpis={revenueKpis} loading={revenueKpisLoading} />
         ) : (
           <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
             <InventoryOverviewCard overview={overview} overviewLoading={overviewLoading} />
@@ -591,7 +591,7 @@ function OverviewStatCard({ label, value }) {
   );
 }
 
-function RevenueKPICards({ kpis, loading, periodLabel }) {
+function RevenueKPICards({ kpis, loading }) {
   const fmt = (v) => (loading || !kpis ? "—" : formatMoney(v));
   const fmtN = (v) => (loading || !kpis ? "—" : formatNumber(v));
 
@@ -608,25 +608,21 @@ function RevenueKPICards({ kpis, loading, periodLabel }) {
       {/* Row 1: revenue money metrics */}
       <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-4 shadow-sm">
         <div className="text-xs font-semibold uppercase tracking-wide text-green-700">Revenue Collected</div>
-        <div className="mt-1 text-[11px] text-green-600">{periodLabel}</div>
         <div className="mt-2 text-xl font-bold text-green-900">{fmt(kpis?.revenue_collected)}</div>
         <div className="mt-1 text-xs text-green-700">From paid fees</div>
       </div>
       <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-4 shadow-sm">
         <div className="text-xs font-semibold uppercase tracking-wide text-orange-700">Revenue Backlog</div>
-        <div className="mt-1 text-[11px] text-orange-500">{periodLabel}</div>
         <div className="mt-2 text-xl font-bold text-orange-700">{fmt(kpis?.revenue_backlog)}</div>
         <div className="mt-1 text-xs text-orange-600">Unpaid outstanding</div>
       </div>
       <div className="rounded-xl border border-gray-200 bg-white px-4 py-4 shadow-sm">
         <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Expected Revenue</div>
-        <div className="mt-1 text-[11px] text-gray-400">{periodLabel}</div>
         <div className="mt-2 text-xl font-bold text-green-900">{fmt(kpis?.revenue_expected)}</div>
         <div className="mt-1 text-xs text-gray-500">All fees incurred</div>
       </div>
       <div className="rounded-xl border border-gray-200 bg-white px-4 py-4 shadow-sm">
         <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Collection Rate</div>
-        <div className="mt-1 text-[11px] text-gray-400">{periodLabel}</div>
         <div className="mt-2 text-xl font-bold text-green-900">{collectionRate}</div>
         <div className="mt-1 text-xs text-gray-500">Collected vs. expected</div>
       </div>
@@ -634,25 +630,21 @@ function RevenueKPICards({ kpis, loading, periodLabel }) {
       {/* Row 2: counts and per-fee detail */}
       <div className="rounded-xl border border-gray-200 bg-white px-4 py-4 shadow-sm">
         <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Total Fees</div>
-        <div className="mt-1 text-[11px] text-gray-400">{periodLabel}</div>
         <div className="mt-2 text-xl font-bold text-green-900">{fmtN(kpis?.total_fees)}</div>
         <div className="mt-1 text-xs text-gray-400">Fees incurred</div>
       </div>
       <div className="rounded-xl border border-gray-200 bg-white px-4 py-4 shadow-sm">
         <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Unpaid Fees</div>
-        <div className="mt-1 text-[11px] text-gray-400">{periodLabel}</div>
         <div className="mt-2 text-xl font-bold text-red-600">{fmtN(kpis?.unpaid_fee_count)}</div>
         <div className="mt-1 text-xs text-gray-400">Not yet collected</div>
       </div>
       <div className="rounded-xl border border-gray-200 bg-white px-4 py-4 shadow-sm">
         <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Avg Fee Amount</div>
-        <div className="mt-1 text-[11px] text-gray-400">{periodLabel}</div>
         <div className="mt-2 text-xl font-bold text-green-900">{avgFee}</div>
         <div className="mt-1 text-xs text-gray-400">Per fee incurred</div>
       </div>
       <div className="rounded-xl border border-gray-200 bg-white px-4 py-4 shadow-sm">
         <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Top Item by Fees</div>
-        <div className="mt-1 text-[11px] text-gray-400">{periodLabel}</div>
         <div className="mt-2 text-base font-bold text-green-900 truncate">
           {loading || !kpis ? "—" : (kpis.top_item_name ?? "N/A")}
         </div>
