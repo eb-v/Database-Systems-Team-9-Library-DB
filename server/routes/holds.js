@@ -1,5 +1,7 @@
 const db = require('../db');
 
+const formatDate = (d) => d.toISOString().split('T')[0];
+
 async function placeHold(req, res) {
     let body = '';
 
@@ -8,13 +10,11 @@ async function placeHold(req, res) {
         try {
             const { person_id, item_id } = JSON.parse(body);
 
-            // can only place hold on own behalf
             if (req.user.person_id !== parseInt(person_id)) {
                 res.writeHead(403);
                 return res.end(JSON.stringify({ error: 'You can only place holds on your own behalf' }));
             }
 
-            // check item exists
             const [itemRows] = await db.query(`SELECT Item_ID FROM Item WHERE Item_ID = ?`, [item_id]);
             if (itemRows.length === 0) {
                 res.writeHead(404);
@@ -43,62 +43,63 @@ async function placeHold(req, res) {
                 return res.end(JSON.stringify({ error: 'You already have an active hold on this item' }));
             }
 
-            // get all non-removed copies of this item
-            const [copies] = await db.query(
-                `SELECT Copy_ID, Copy_status FROM Copy WHERE Item_ID = ? AND Copy_status != 0`,
+            // need at least one non-removed copy to satisfy the FK for waiting holds
+            const [anyCopy] = await db.query(
+                `SELECT Copy_ID FROM Copy WHERE Item_ID = ? AND Copy_status != 0 LIMIT 1`,
                 [item_id]
             );
-            if (copies.length === 0) {
+            if (anyCopy.length === 0) {
                 res.writeHead(400);
                 return res.end(JSON.stringify({ error: 'No copies exist for this item' }));
             }
 
-            // for each copy, count how many active holds it has
-            const copyHoldCounts = await Promise.all(copies.map(async (copy) => {
-                const [rows] = await db.query(
-                    `SELECT COUNT(*) as count FROM HoldItem WHERE Copy_ID = ? AND hold_status IN (1, 2)`,
-                    [copy.Copy_ID]
-                );
-                return { ...copy, holdCount: rows[0].count };
-            }));
+            // item-level queue position = total active holds across all copies of this item
+            const [itemHoldCount] = await db.query(
+                `SELECT COUNT(*) as count FROM HoldItem h
+                 JOIN Copy c ON h.Copy_ID = c.Copy_ID
+                 WHERE c.Item_ID = ? AND h.hold_status IN (1, 2)`,
+                [item_id]
+            );
+            const queuePosition = itemHoldCount[0].count;
 
-            // prefer an available copy with no active holds — otherwise pick the least queued copy
-            let assignedCopy = copyHoldCounts.find(c => c.Copy_status === 1 && c.holdCount === 0);
-            if (!assignedCopy) {
-                assignedCopy = copyHoldCounts.sort((a, b) => a.holdCount - b.holdCount)[0];
-            }
+            // find an available copy not already reserved for a Ready hold
+            const [availableCopies] = await db.query(
+                `SELECT cp.Copy_ID FROM Copy cp
+                 WHERE cp.Item_ID = ? AND cp.Copy_status = 1
+                 AND cp.Copy_ID NOT IN (SELECT Copy_ID FROM HoldItem WHERE hold_status = 2)
+                 LIMIT 1`,
+                [item_id]
+            );
 
-            const queuePosition = assignedCopy.holdCount; // 0 = first in line
-            const isReady = assignedCopy.Copy_status === 1 && queuePosition === 0;
+            // if a copy is free right now, go straight to Ready — otherwise wait
+            const isReady = availableCopies.length > 0;
+            const assignedCopyId = isReady ? availableCopies[0].Copy_ID : anyCopy[0].Copy_ID;
 
             const today = new Date();
-            const formatDate = (d) => d.toISOString().split('T')[0];
             const holdDate = formatDate(today);
-
             let holdStatus, expiryDate;
+
             if (isReady) {
-                // copy is available and patron is first — ready for pickup with 2-day window
                 holdStatus = 2;
                 const expiry = new Date();
                 expiry.setDate(expiry.getDate() + 2);
                 expiryDate = formatDate(expiry);
             } else {
-                holdStatus = 1; // waiting in queue
+                holdStatus = 1;
                 expiryDate = null;
             }
 
             const [result] = await db.query(
                 `INSERT INTO HoldItem (queue_status, hold_status, hold_date, expiry_date, Person_ID, Copy_ID)
                  VALUES (?, ?, ?, ?, ?, ?)`,
-                [queuePosition, holdStatus, holdDate, expiryDate, person_id, assignedCopy.Copy_ID]
+                [queuePosition, holdStatus, holdDate, expiryDate, person_id, assignedCopyId]
             );
 
             res.writeHead(201);
             res.end(JSON.stringify({
                 message: 'Hold placed successfully',
                 hold_id: result.insertId,
-                copy_id: assignedCopy.Copy_ID,
-                queue_position: queuePosition,
+                queue_position: queuePosition + 1,
                 status: holdStatus === 2 ? 'ready for pickup' : 'waiting',
                 expiry_date: expiryDate
             }));
@@ -109,11 +110,80 @@ async function placeHold(req, res) {
     });
 }
 
+async function cancelHold(req, res) {
+    try {
+        const holdId = req.url.split('/')[3];
+
+        const [holdRows] = await db.query(`SELECT * FROM HoldItem WHERE Hold_ID = ?`, [holdId]);
+        if (holdRows.length === 0) {
+            res.writeHead(404);
+            return res.end(JSON.stringify({ error: 'Hold not found' }));
+        }
+
+        const hold = holdRows[0];
+
+        // patrons can only cancel their own holds; staff can cancel any
+        if (req.user.role !== 1 && req.user.person_id !== parseInt(hold.Person_ID)) {
+            res.writeHead(403);
+            return res.end(JSON.stringify({ error: 'You can only cancel your own holds' }));
+        }
+
+        if (hold.hold_status === 0) {
+            res.writeHead(400);
+            return res.end(JSON.stringify({ error: 'Hold is already cancelled' }));
+        }
+        if (hold.hold_status === 3) {
+            res.writeHead(400);
+            return res.end(JSON.stringify({ error: 'Cannot cancel a fulfilled hold' }));
+        }
+
+        // get item_id via the hold's copy
+        const [copyRow] = await db.query(`SELECT Item_ID FROM Copy WHERE Copy_ID = ?`, [hold.Copy_ID]);
+        const itemId = copyRow[0].Item_ID;
+
+        // soft delete
+        await db.query(`UPDATE HoldItem SET hold_status = 0 WHERE Hold_ID = ?`, [holdId]);
+
+        // shift item-level queue — everyone behind this position moves up
+        await db.query(
+            `UPDATE HoldItem h JOIN Copy c ON h.Copy_ID = c.Copy_ID
+             SET h.queue_status = h.queue_status - 1
+             WHERE c.Item_ID = ? AND h.hold_status IN (1, 2) AND h.queue_status > ?`,
+            [itemId, hold.queue_status]
+        );
+
+        // if the cancelled hold was Ready, its assigned copy is still available —
+        // the promote_next_hold trigger won't fire (no Copy status changed), so promote manually
+        if (hold.hold_status === 2) {
+            const [nextHold] = await db.query(
+                `SELECT h.Hold_ID FROM HoldItem h
+                 JOIN Copy c ON h.Copy_ID = c.Copy_ID
+                 WHERE c.Item_ID = ? AND h.hold_status = 1
+                 ORDER BY h.queue_status ASC, h.hold_date ASC LIMIT 1`,
+                [itemId]
+            );
+            if (nextHold.length > 0) {
+                const expiry = new Date();
+                expiry.setDate(expiry.getDate() + 2);
+                await db.query(
+                    `UPDATE HoldItem SET hold_status = 2, expiry_date = ?, Copy_ID = ? WHERE Hold_ID = ?`,
+                    [formatDate(expiry), hold.Copy_ID, nextHold[0].Hold_ID]
+                );
+            }
+        }
+
+        res.writeHead(200);
+        res.end(JSON.stringify({ message: 'Hold cancelled successfully' }));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to cancel hold', details: err.message }));
+    }
+}
+
 async function getHoldsForPerson(req, res) {
     try {
         const personId = req.url.split('/')[3];
 
-        // patrons can only view their own holds
         if (req.user.role === 2 && req.user.person_id !== parseInt(personId)) {
             res.writeHead(403);
             return res.end(JSON.stringify({ error: 'Access denied' }));
@@ -148,7 +218,6 @@ async function getHoldsForPerson(req, res) {
 
 async function getAllHolds(req, res) {
     try {
-        // get all holds across all patrons — join Person, Copy, and Item for full details
         const [rows] = await db.query(
             `SELECT
                 h.Hold_ID, h.queue_status, h.hold_status, h.hold_date, h.expiry_date,
@@ -166,69 +235,6 @@ async function getAllHolds(req, res) {
     } catch (err) {
         res.writeHead(500);
         res.end(JSON.stringify({ error: 'Failed to fetch all holds', details: err.message }));
-    }
-}
-
-async function cancelHold(req, res) {
-    try {
-        const holdId = req.url.split('/')[3];
-
-        // look up the hold
-        const [holdRows] = await db.query(`SELECT * FROM HoldItem WHERE Hold_ID = ?`, [holdId]);
-        if (holdRows.length === 0) {
-            res.writeHead(404);
-            return res.end(JSON.stringify({ error: 'Hold not found' }));
-        }
-
-        const hold = holdRows[0];
-
-        // anyone can only cancel their own holds
-        if (req.user.person_id !== parseInt(hold.Person_ID)) {
-            res.writeHead(403);
-            return res.end(JSON.stringify({ error: 'You can only cancel your own holds' }));
-        }
-
-        if (hold.hold_status === 0) {
-            res.writeHead(400);
-            return res.end(JSON.stringify({ error: 'Hold is already cancelled' }));
-        }
-        if (hold.hold_status === 3) {
-            res.writeHead(400);
-            return res.end(JSON.stringify({ error: 'Cannot cancel a fulfilled hold' }));
-        }
-
-        // soft delete
-        await db.query(`UPDATE HoldItem SET hold_status = 0 WHERE Hold_ID = ?`, [holdId]);
-
-        // shift queue — decrement everyone behind this hold on the same copy
-        await db.query(
-            `UPDATE HoldItem SET queue_status = queue_status - 1
-             WHERE Copy_ID = ? AND hold_status IN (1, 2) AND queue_status > ?`,
-            [hold.Copy_ID, hold.queue_status]
-        );
-
-        // if the cancelled hold was first in line (status 2), promote the next person in queue
-        if (hold.hold_status === 2) {
-            const [nextHold] = await db.query(
-                `SELECT Hold_ID FROM HoldItem WHERE Copy_ID = ? AND hold_status = 1 AND queue_status = 0`,
-                [hold.Copy_ID]
-            );
-            if (nextHold.length > 0) {
-                const expiry = new Date();
-                expiry.setDate(expiry.getDate() + 2);
-                const formatDate = (d) => d.toISOString().split('T')[0];
-                await db.query(
-                    `UPDATE HoldItem SET hold_status = 2, expiry_date = ? WHERE Hold_ID = ?`,
-                    [formatDate(expiry), nextHold[0].Hold_ID]
-                );
-            }
-        }
-
-        res.writeHead(200);
-        res.end(JSON.stringify({ message: 'Hold cancelled successfully' }));
-    } catch (err) {
-        res.writeHead(500);
-        res.end(JSON.stringify({ error: 'Failed to cancel hold', details: err.message }));
     }
 }
 
