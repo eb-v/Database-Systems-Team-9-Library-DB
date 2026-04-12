@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
+import Banner from "../components/Banner";
 
 export default function RegisterPage() {
   const [form, setForm] = useState({
@@ -12,7 +13,7 @@ export default function RegisterPage() {
     phone_number: "",
     birthday: "",
   });
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState({ text: "", success: true });
   const navigate = useNavigate();
 
   const handleChange = (e) => {
@@ -21,7 +22,7 @@ export default function RegisterPage() {
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage("");
+    setMessage({ text: "", success: true });
 
     try {
       const response = await apiFetch("/api/auth/register", {
@@ -33,14 +34,14 @@ export default function RegisterPage() {
       const data = await response.json();
 
       if (!response.ok) {
-        setMessage(data.error || "Registration failed.");
+        setMessage({ text: data.error || "Registration failed.", success: false });
         return;
       }
 
       navigate("/login");
     } catch (error) {
       console.error(error);
-      setMessage("Unable to connect to the server.");
+      setMessage({ text: "Unable to connect to the server.", success: false });
     }
   };
 
@@ -137,9 +138,7 @@ export default function RegisterPage() {
           </button>
         </form>
 
-        {message && (
-          <p className="text-center text-red-600 text-sm mt-4">{message}</p>
-        )}
+        <Banner message={message} onDismiss={() => setMessage({ text: "", success: true })} />
 
         <p className="text-center text-sm text-gray-600 mt-4">
           Already have an account?{" "}

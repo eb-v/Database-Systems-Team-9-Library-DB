@@ -1,5 +1,6 @@
 import { useState } from "react";
 import NavigationBar from "../components/NavigationBar";
+import Banner from "../components/Banner";
 
 export default function ReturnsBorrowsPage() {
   const [action, setAction] = useState("Borrow");
@@ -8,7 +9,7 @@ export default function ReturnsBorrowsPage() {
   const [returnByDate, setReturnByDate] = useState("");
   const [personId, setPersonId] = useState("");
   const [copyId, setCopyId] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState({ text: "", success: true });
 
   const handleActionChange = (e) => {
     setAction(e.target.value);
@@ -17,26 +18,26 @@ export default function ReturnsBorrowsPage() {
     setReturnByDate("");
     setPersonId("");
     setCopyId("");
-    setMessage("");
+    setMessage({ text: "", success: true });
   };
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!borrowedItemId || !personId || !copyId) {
-      setMessage("Please fill in all required fields.");
+      setMessage({ text: "Please fill in all required fields.", success: false });
       return;
     }
 
     if (action === "Borrow" && (!borrowDate || !returnByDate)) {
-      setMessage("Please fill in all required fields.");
+      setMessage({ text: "Please fill in all required fields.", success: false });
       return;
     }
 
     if (action === "Borrow") {
-      setMessage("Borrow transaction recorded.");
+      setMessage({ text: "Borrow transaction recorded.", success: true });
     } else {
-      setMessage("Return transaction recorded.");
+      setMessage({ text: "Return transaction recorded.", success: true });
     }
   };
 
@@ -150,17 +151,7 @@ export default function ReturnsBorrowsPage() {
               {action === "Borrow" ? "Process Borrow" : "Process Return"}
             </button>
 
-            {message && (
-              <p
-                className={`text-sm font-medium ${
-                  message.includes("Please")
-                    ? "text-red-700"
-                    : "text-green-700"
-                }`}
-              >
-                {message}
-              </p>
-            )}
+            <Banner message={message} onDismiss={() => setMessage({ text: "", success: true })} />
 
             <p className="text-sm text-gray-500 pt-2">
               <span className="text-red-600 font-semibold">*</span> indicates a

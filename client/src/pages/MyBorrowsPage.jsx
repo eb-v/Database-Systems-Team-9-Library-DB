@@ -3,13 +3,14 @@ import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 import ItemImage from "../components/ItemImage";
 import { apiFetch } from "../api";
+import Banner from "../components/Banner";
 
 export default function MyBorrowsPage() {
   const navigate = useNavigate();
   const [borrows, setBorrows] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState({ text: "", success: true });
 
   const token = sessionStorage.getItem("token");
   const personId = sessionStorage.getItem("personId");
@@ -43,7 +44,7 @@ export default function MyBorrowsPage() {
   }, []);
 
   const handleReturn = async (borrowedItemId, damaged, lost) => {
-    setMessage("");
+    setMessage({ text: "", success: true });
     try {
       const response = await apiFetch("/api/borrow/return", {
         method: "POST",
@@ -55,17 +56,18 @@ export default function MyBorrowsPage() {
       });
       const data = await response.json();
       if (!response.ok) {
-        setMessage(data.error || "Failed to return item.");
+        setMessage({ text: data.error || "Failed to return item.", success: false });
         return;
       }
+      const hasFee = data.fees_charged.late > 0 || data.fees_charged.damage > 0 || data.fees_charged.loss > 0;
       let msg = "Item returned successfully.";
       if (data.fees_charged.late > 0) msg += ` Late fee: $${data.fees_charged.late}.`;
       if (data.fees_charged.damage > 0) msg += ` Damage fee: $${data.fees_charged.damage}.`;
       if (data.fees_charged.loss > 0) msg += ` Loss fee: $${data.fees_charged.loss}.`;
-      setMessage(msg);
+      setMessage({ text: msg, success: !hasFee });
       fetchBorrows();
     } catch {
-      setMessage("Unable to connect to the server.");
+      setMessage({ text: "Unable to connect to the server.", success: false });
     }
   };
 
@@ -95,11 +97,7 @@ export default function MyBorrowsPage() {
 
         {loading && <p className="text-gray-600">Loading...</p>}
         {error && <p className="text-red-600">{error}</p>}
-        {message && (
-          <p className={`mb-4 text-sm font-medium ${message.includes("success") ? "text-green-700" : "text-red-600"}`}>
-            {message}
-          </p>
-        )}
+        <Banner message={message} onDismiss={() => setMessage({ text: "", success: true })} />
 
         {!loading && !error && borrows.length === 0 && (
           <p className="text-gray-600">You have no active borrows.</p>

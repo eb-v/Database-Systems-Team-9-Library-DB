@@ -1,10 +1,11 @@
-const db = require('../db');
+const db     = require('../db');
+const bcrypt = require('bcrypt');
 
 async function getAllStaff(req, res) {
     try {
         const [rows] = await db.query(
             `SELECT p.Person_ID, p.First_name, p.Last_name, p.username, p.email,
-                    p.phone_number, p.account_status, s.Staff_permissions
+                    p.phone_number, p.birthday, p.account_status, s.Staff_permissions
              FROM Person p
              JOIN Staff s ON p.Person_ID = s.Person_ID
              ORDER BY s.Staff_permissions ASC, p.Last_name ASC`
@@ -60,4 +61,56 @@ async function updateStaffPermissions(req, res) {
     });
 }
 
-module.exports = { getAllStaff, updateStaffPermissions };
+async function updateStaffInfo(req, res) {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+        try {
+            const personId = req.url.split('/')[3];
+            const { first_name, last_name, email, phone_number, username, birthday, password } = JSON.parse(body);
+
+            const [staffRows] = await db.query(
+                `SELECT Person_ID FROM Staff WHERE Person_ID = ?`, [personId]
+            );
+            if (staffRows.length === 0) {
+                res.writeHead(404);
+                return res.end(JSON.stringify({ error: 'Staff member not found' }));
+            }
+
+            // Check username uniqueness if changing it
+            if (username) {
+                const [existing] = await db.query(
+                    `SELECT Person_ID FROM Person WHERE username = ? AND Person_ID != ?`,
+                    [username, personId]
+                );
+                if (existing.length > 0) {
+                    res.writeHead(409);
+                    return res.end(JSON.stringify({ error: 'Username is already taken' }));
+                }
+            }
+
+            const hashedPassword = password ? await bcrypt.hash(password, 10) : null;
+
+            await db.query(
+                `UPDATE Person SET
+                    First_name   = COALESCE(?, First_name),
+                    Last_name    = COALESCE(?, Last_name),
+                    email        = COALESCE(?, email),
+                    phone_number = COALESCE(?, phone_number),
+                    username     = COALESCE(?, username),
+                    birthday     = COALESCE(?, birthday),
+                    password     = COALESCE(?, password)
+                 WHERE Person_ID = ?`,
+                [first_name || null, last_name || null, email || null, phone_number || null, username || null, birthday || null, hashedPassword, personId]
+            );
+
+            res.writeHead(200);
+            res.end(JSON.stringify({ message: 'Staff info updated successfully' }));
+        } catch (err) {
+            res.writeHead(500);
+            res.end(JSON.stringify({ error: 'Failed to update staff info', details: err.message }));
+        }
+    });
+}
+
+module.exports = { getAllStaff, updateStaffPermissions, updateStaffInfo };

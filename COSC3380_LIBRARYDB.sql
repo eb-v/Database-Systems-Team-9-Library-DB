@@ -181,13 +181,24 @@ CREATE TRIGGER promote_next_hold
 AFTER UPDATE ON Copy
 FOR EACH ROW
 BEGIN
+  DECLARE next_hold_id INT;
+
   IF NEW.Copy_status = 1 AND OLD.Copy_status <> 1 THEN
-    UPDATE HoldItem
-    SET hold_status = 2,
-        expiry_date = DATE_ADD(CURDATE(), INTERVAL 2 DAY)
-    WHERE Copy_ID = NEW.Copy_ID
-      AND hold_status = 1
-      AND queue_status = 0;
+    SELECT h.Hold_ID INTO next_hold_id
+    FROM HoldItem h
+    JOIN Copy c ON h.Copy_ID = c.Copy_ID
+    WHERE c.Item_ID = NEW.Item_ID
+      AND h.hold_status = 1
+    ORDER BY h.queue_status ASC, h.hold_date ASC
+    LIMIT 1;
+
+    IF next_hold_id IS NOT NULL THEN
+      UPDATE HoldItem
+      SET hold_status = 2,
+          expiry_date = DATE_ADD(CURDATE(), INTERVAL 2 DAY),
+          Copy_ID = NEW.Copy_ID
+      WHERE Hold_ID = next_hold_id;
+    END IF;
   END IF;
 END //
 
