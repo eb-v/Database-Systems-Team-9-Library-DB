@@ -8,6 +8,7 @@ import {
   InfoBox,
   PeriodPickerControl,
   SelectControl,
+  formatDecimal,
   formatMoney,
   formatNumber,
   getDefaultPeriodValue,
@@ -34,15 +35,9 @@ import {
 import { downloadReportPdf } from "./reports/reportPDF";
 
 const EXPORT_LIMIT = 1000;
-const EMPTY_OVERVIEW = {
-  total_items: 0,
-  total_books: 0,
-  total_cds: 0,
-  total_devices: 0,
-  total_borrowed: 0,
-  total_active_borrows: 0,
-  total_fees: 0,
-  total_revenue: 0,
+const KPI_ENDPOINTS = {
+  popularity: "/api/reports/popularity-overview",
+  patrons: "/api/reports/patrons-overview",
 };
 
 const REPORT_DEFINITIONS = {
@@ -101,19 +96,6 @@ function createAuthOptions(token) {
   };
 }
 
-function normalizeOverview(payload) {
-  return {
-    total_items: Number(payload.total_items ?? 0),
-    total_books: Number(payload.total_books ?? 0),
-    total_cds: Number(payload.total_cds ?? 0),
-    total_devices: Number(payload.total_devices ?? 0),
-    total_borrowed: Number(payload.total_borrowed ?? 0),
-    total_active_borrows: Number(payload.total_active_borrows ?? 0),
-    total_fees: Number(payload.total_fees ?? 0),
-    total_revenue: Number(payload.total_revenue ?? 0),
-  };
-}
-
 function buildReportParams(reportDefinition, sort, sortDirection, filters, extraParams = {}) {
   const params = new URLSearchParams();
 
@@ -141,15 +123,24 @@ function buildReportUrl(reportDefinition, sort, sortDirection, filters, extraPar
   return `${reportDefinition.endpoint}${query ? `?${query}` : ""}`;
 }
 
-function buildOverviewUrl(filters) {
+function buildKpiUrl(reportType, reportDefinition, filters) {
+  const endpoint = KPI_ENDPOINTS[reportType];
+
+  if (!endpoint) {
+    return null;
+  }
+
   const params = new URLSearchParams();
-  appendPeriodParams(params, filters);
+  reportDefinition.buildParams(params, filters);
   const query = params.toString();
-  return `/api/reports/overview${query ? `?${query}` : ""}`;
+  return `${endpoint}${query ? `?${query}` : ""}`;
 }
 
 function createReportFileStem(reportKey, periodLabel) {
-  const normalizedPeriod = periodLabel.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+  const normalizedPeriod = periodLabel
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
   return `${reportKey}-report-${normalizedPeriod || "all-time"}`;
 }
 
@@ -202,8 +193,8 @@ export default function ReportsPage() {
     createInitialHiddenColumnsState
   );
   const [data, setData] = useState([]);
-  const [overview, setOverview] = useState(EMPTY_OVERVIEW);
-  const [overviewLoading, setOverviewLoading] = useState(true);
+  const [reportKpis, setReportKpis] = useState(null);
+  const [reportKpisLoading, setReportKpisLoading] = useState(false);
   const [revenueKpis, setRevenueKpis] = useState(null);
   const [revenueKpisLoading, setRevenueKpisLoading] = useState(false);
   const [loading, setLoading] = useState(true);
@@ -225,42 +216,37 @@ export default function ReportsPage() {
   const ActiveTableComponent = activeReport.TableComponent;
   const currentColumns = activeReport.getColumns(reportPeriodLabel);
   const hiddenColumnKeys = hiddenColumnsByReport[reportType];
-  const overviewUrl = useMemo(
-    () =>
-      buildOverviewUrl({
-        periodType: currentFilters.periodType,
-        periodValue: currentFilters.periodValue,
-        customStart: currentFilters.customStart,
-        customEnd: currentFilters.customEnd,
-      }),
-    [
-      currentFilters.periodType,
-      currentFilters.periodValue,
-      currentFilters.customStart,
-      currentFilters.customEnd,
-    ]
+  const kpiUrl = useMemo(
+    () => buildKpiUrl(reportType, activeReport, currentFilters),
+    [reportType, activeReport, currentFilters]
   );
-
   const revenueKpisUrl = useMemo(() => {
     if (reportType !== "revenue") return null;
+
     const params = new URLSearchParams();
     appendPeriodParams(params, currentFilters);
-    if (currentFilters.role && currentFilters.role !== "All") params.set("role", currentFilters.role);
-    if (currentFilters.feeType && currentFilters.feeType !== "All") params.set("feeType", currentFilters.feeType);
-    if (currentFilters.itemType && currentFilters.itemType !== "All") params.set("itemType", currentFilters.itemType);
-    if (currentFilters.paidStatus && currentFilters.paidStatus !== "All") params.set("paidStatus", currentFilters.paidStatus);
+
+    if (currentFilters.role && currentFilters.role !== "All") {
+      params.set("role", currentFilters.role);
+    }
+
+    if (currentFilters.feeType && currentFilters.feeType !== "All") {
+      params.set("feeType", currentFilters.feeType);
+    }
+
+    if (currentFilters.itemType && currentFilters.itemType !== "All") {
+      params.set("itemType", currentFilters.itemType);
+    }
+
+    if (currentFilters.paidStatus && currentFilters.paidStatus !== "All") {
+      params.set("paidStatus", currentFilters.paidStatus);
+    }
+
     const query = params.toString();
     return `/api/reports/revenue-overview${query ? `?${query}` : ""}`;
   }, [
     reportType,
-    currentFilters.periodType,
-    currentFilters.periodValue,
-    currentFilters.customStart,
-    currentFilters.customEnd,
-    currentFilters.role,
-    currentFilters.feeType,
-    currentFilters.itemType,
-    currentFilters.paidStatus,
+    currentFilters,
   ]);
 
   function updateCurrentSort(value) {
@@ -279,7 +265,8 @@ export default function ReportsPage() {
     if (!token) {
       setError("Not logged in.");
       setLoading(false);
-      setOverviewLoading(false);
+      setReportKpisLoading(false);
+      setRevenueKpisLoading(false);
       return;
     }
 
@@ -291,7 +278,6 @@ export default function ReportsPage() {
         const url = buildReportUrl(activeReport, currentSort, currentSortDirection, currentFilters);
 
         const response = await apiFetch(url, createAuthOptions(token));
-
         const json = await response.json();
 
         if (!response.ok) {
@@ -312,49 +298,51 @@ export default function ReportsPage() {
   }, [token, activeReport, currentSort, currentSortDirection, currentFilters]);
 
   useEffect(() => {
-    if (!token) {
-      setOverviewLoading(false);
+    if (!token || !kpiUrl) {
+      setReportKpis(null);
+      setReportKpisLoading(false);
       return;
     }
 
-    async function fetchOverview() {
+    async function fetchReportKpis() {
       try {
-        setOverviewLoading(true);
-        const response = await apiFetch(overviewUrl, createAuthOptions(token));
-
+        setReportKpisLoading(true);
+        const response = await apiFetch(kpiUrl, createAuthOptions(token));
         const json = await response.json();
 
         if (!response.ok) {
-          throw new Error(json.error || "Failed to load overview");
+          throw new Error(json.error || "Failed to load report KPIs");
         }
 
-        setOverview(normalizeOverview(json));
+        setReportKpis(json);
       } catch (err) {
-        console.error("Failed to fetch report overview:", err);
-        setOverview(EMPTY_OVERVIEW);
+        console.error("Failed to fetch report KPIs:", err);
+        setReportKpis(null);
       } finally {
-        setOverviewLoading(false);
+        setReportKpisLoading(false);
       }
     }
 
-    fetchOverview();
-  }, [
-    token,
-    overviewUrl,
-  ]);
+    fetchReportKpis();
+  }, [token, kpiUrl]);
 
   useEffect(() => {
     if (!revenueKpisUrl || !token) {
       setRevenueKpis(null);
+      setRevenueKpisLoading(false);
       return;
     }
 
     async function fetchRevenueKpis() {
-      setRevenueKpisLoading(true);
       try {
+        setRevenueKpisLoading(true);
         const response = await apiFetch(revenueKpisUrl, createAuthOptions(token));
         const json = await response.json();
-        if (!response.ok) throw new Error(json.error || "Failed to load revenue KPIs");
+
+        if (!response.ok) {
+          throw new Error(json.error || "Failed to load revenue KPIs");
+        }
+
         setRevenueKpis(json);
       } catch (err) {
         console.error("Failed to fetch revenue KPIs:", err);
@@ -396,11 +384,9 @@ export default function ReportsPage() {
     if (key === "periodType") {
       updateCurrentFilters((filters) => ({
         ...filters,
-          periodType: value,
-          periodValue:
-            filters.periodType === value
-              ? filters.periodValue
-              : getDefaultPeriodValue(value),
+        periodType: value,
+        periodValue:
+          filters.periodType === value ? filters.periodValue : getDefaultPeriodValue(value),
       }));
       return;
     }
@@ -435,7 +421,6 @@ export default function ReportsPage() {
       });
 
       const response = await apiFetch(url, createAuthOptions(token));
-
       const json = await response.json();
 
       if (!response.ok) {
@@ -514,28 +499,26 @@ export default function ReportsPage() {
           </div>
         </div>
 
-        {reportType === "revenue" ? (
-          <RevenueKPICards kpis={revenueKpis} loading={revenueKpisLoading} />
-        ) : (
-          <div className="mb-6 grid grid-cols-1 gap-4 sm:grid-cols-2 xl:grid-cols-5">
-            <InventoryOverviewCard overview={overview} overviewLoading={overviewLoading} />
-            <OverviewStatCard
-              label={`Borrows Total (${reportPeriodLabel})`}
-              value={overviewLoading ? "Loading..." : formatNumber(overview.total_borrowed)}
-            />
-            <OverviewStatCard
-              label={`Active Borrows (${reportPeriodLabel})`}
-              value={overviewLoading ? "Loading..." : formatNumber(overview.total_active_borrows)}
-            />
-            <OverviewStatCard
-              label={`Fees Total (${reportPeriodLabel})`}
-              value={overviewLoading ? "Loading..." : formatNumber(overview.total_fees)}
-            />
-            <OverviewStatCard
-              label={`Revenue Total (${reportPeriodLabel})`}
-              value={overviewLoading ? "Loading..." : formatMoney(overview.total_revenue)}
-            />
-          </div>
+        {reportType === "revenue" && (
+          <RevenueKPICards
+            kpis={revenueKpis}
+            loading={revenueKpisLoading}
+            periodLabel={reportPeriodLabel}
+          />
+        )}
+        {reportType === "popularity" && (
+          <PopularityKPICards
+            kpis={reportKpis}
+            loading={reportKpisLoading}
+            periodLabel={reportPeriodLabel}
+          />
+        )}
+        {reportType === "patrons" && (
+          <PatronKPICards
+            kpis={reportKpis}
+            loading={reportKpisLoading}
+            periodLabel={reportPeriodLabel}
+          />
         )}
 
         {loading && <InfoBox text="Loading..." />}
@@ -560,98 +543,312 @@ export default function ReportsPage() {
   );
 }
 
-function InventoryOverviewCard({ overview, overviewLoading }) {
+function KpiCardGrid({ cards }) {
   return (
-    <div className="rounded-xl border border-gray-200 bg-white px-4 py-3 shadow-sm">
-      <div className="text-[11px] font-semibold uppercase tracking-wide text-gray-500">
-        Total Items In DB
-      </div>
-      <div className="mt-2 flex items-start justify-between gap-4">
-        <div>
-          <div className="text-2xl font-bold text-green-900">
-            {overviewLoading ? "Loading..." : formatNumber(overview.total_items)}
-          </div>
-        </div>
-        <div className="min-w-[96px] space-y-1 text-right text-xs text-gray-600">
-          <div>Books: {overviewLoading ? "..." : formatNumber(overview.total_books)}</div>
-          <div>CDs: {overviewLoading ? "..." : formatNumber(overview.total_cds)}</div>
-          <div>Devices: {overviewLoading ? "..." : formatNumber(overview.total_devices)}</div>
-        </div>
-      </div>
+    <div className="mb-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
+      {cards.map((card) => (
+        <KpiCard key={card.label} {...card} />
+      ))}
     </div>
   );
 }
 
-function OverviewStatCard({ label, value }) {
+function KpiCard({ label, value, subtitle, tone = "default", compact = false }) {
+  const toneClasses = {
+    success: {
+      wrapper: "border-green-200 bg-green-50",
+      label: "text-green-700",
+      value: "text-green-900",
+      subtitle: "text-green-700",
+    },
+    warn: {
+      wrapper: "border-orange-200 bg-orange-50",
+      label: "text-orange-700",
+      value: "text-orange-700",
+      subtitle: "text-orange-600",
+    },
+    danger: {
+      wrapper: "border-red-200 bg-red-50",
+      label: "text-red-700",
+      value: "text-red-700",
+      subtitle: "text-red-600",
+    },
+    muted: {
+      wrapper: "border-gray-200 bg-gray-50",
+      label: "text-gray-500",
+      value: "text-gray-600",
+      subtitle: "text-gray-400",
+    },
+    default: {
+      wrapper: "border-gray-200 bg-white",
+      label: "text-gray-500",
+      value: "text-green-900",
+      subtitle: "text-gray-500",
+    },
+  }[tone];
+
   return (
-    <div className="rounded-xl border border-gray-200 bg-white px-5 py-4 text-center shadow-sm">
-      <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">{label}</div>
-      <div className="mt-2 text-2xl font-bold text-green-900">{value}</div>
+    <div className={`rounded-xl border px-4 py-4 shadow-sm ${toneClasses.wrapper}`}>
+      <div className={`text-xs font-semibold uppercase tracking-wide ${toneClasses.label}`}>
+        {label}
+      </div>
+      <div
+        className={`mt-2 font-bold ${toneClasses.value} ${
+          compact ? "truncate text-base" : "text-xl"
+        }`}
+      >
+        {value}
+      </div>
+      {subtitle ? <div className={`mt-1 text-xs ${toneClasses.subtitle}`}>{subtitle}</div> : null}
     </div>
   );
 }
 
-function RevenueKPICards({ kpis, loading }) {
-  const fmt = (v) => (loading || !kpis ? "—" : formatMoney(v));
-  const fmtN = (v) => (loading || !kpis ? "—" : formatNumber(v));
+function RevenueKPICards({ kpis, loading, periodLabel }) {
+  const fmt = (value) => (loading || !kpis ? "—" : formatMoney(value));
+  const fmtN = (value) => (loading || !kpis ? "—" : formatNumber(value));
 
-  const collectionRate = !loading && kpis && Number(kpis.revenue_expected) > 0
-    ? `${((Number(kpis.revenue_collected) / Number(kpis.revenue_expected)) * 100).toFixed(1)}%`
-    : (loading || !kpis ? "—" : "N/A");
+  const collectionRate =
+    !loading && kpis && Number(kpis.revenue_expected) > 0
+      ? `${((Number(kpis.revenue_collected) / Number(kpis.revenue_expected)) * 100).toFixed(
+          1
+        )}%`
+      : loading || !kpis
+        ? "—"
+        : "N/A";
 
-  const avgFee = !loading && kpis && Number(kpis.total_fees) > 0
-    ? formatMoney(Number(kpis.revenue_expected) / Number(kpis.total_fees))
-    : (loading || !kpis ? "—" : "N/A");
+  const avgFee =
+    !loading && kpis && Number(kpis.total_fees) > 0
+      ? formatMoney(Number(kpis.revenue_expected) / Number(kpis.total_fees))
+      : loading || !kpis
+        ? "—"
+        : "N/A";
 
   return (
     <div className="mb-6 grid grid-cols-2 gap-4 xl:grid-cols-4">
-      {/* Row 1: revenue money metrics */}
       <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-4 shadow-sm">
-        <div className="text-xs font-semibold uppercase tracking-wide text-green-700">Revenue Collected</div>
-        <div className="mt-2 text-xl font-bold text-green-900">{fmt(kpis?.revenue_collected)}</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-green-700">
+          Revenue Collected
+        </div>
+        <div className="mt-1 text-xs text-green-700">{periodLabel}</div>
+        <div className="mt-2 text-xl font-bold text-green-900">
+          {fmt(kpis?.revenue_collected)}
+        </div>
         <div className="mt-1 text-xs text-green-700">From paid fees</div>
       </div>
       <div className="rounded-xl border border-orange-200 bg-orange-50 px-4 py-4 shadow-sm">
-        <div className="text-xs font-semibold uppercase tracking-wide text-orange-700">Revenue Backlog</div>
-        <div className="mt-2 text-xl font-bold text-orange-700">{fmt(kpis?.revenue_backlog)}</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-orange-700">
+          Revenue Backlog
+        </div>
+        <div className="mt-1 text-xs text-orange-600">{periodLabel}</div>
+        <div className="mt-2 text-xl font-bold text-orange-700">
+          {fmt(kpis?.revenue_backlog)}
+        </div>
         <div className="mt-1 text-xs text-orange-600">Unpaid outstanding</div>
       </div>
       <div className="rounded-xl border border-gray-200 bg-white px-4 py-4 shadow-sm">
-        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Expected Revenue</div>
-        <div className="mt-2 text-xl font-bold text-green-900">{fmt(kpis?.revenue_expected)}</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Expected Revenue
+        </div>
+        <div className="mt-1 text-xs text-gray-400">{periodLabel}</div>
+        <div className="mt-2 text-xl font-bold text-green-900">
+          {fmt(kpis?.revenue_expected)}
+        </div>
         <div className="mt-1 text-xs text-gray-500">All fees incurred</div>
       </div>
       <div className="rounded-xl border border-gray-200 bg-white px-4 py-4 shadow-sm">
-        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Collection Rate</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Collection Rate
+        </div>
+        <div className="mt-1 text-xs text-gray-400">{periodLabel}</div>
         <div className="mt-2 text-xl font-bold text-green-900">{collectionRate}</div>
         <div className="mt-1 text-xs text-gray-500">Collected vs. expected</div>
       </div>
 
-      {/* Row 2: counts and per-fee detail */}
       <div className="rounded-xl border border-gray-200 bg-white px-4 py-4 shadow-sm">
-        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Total Fees</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Total Fees
+        </div>
+        <div className="mt-1 text-xs text-gray-400">{periodLabel}</div>
         <div className="mt-2 text-xl font-bold text-green-900">{fmtN(kpis?.total_fees)}</div>
         <div className="mt-1 text-xs text-gray-400">Fees incurred</div>
       </div>
       <div className="rounded-xl border border-gray-200 bg-white px-4 py-4 shadow-sm">
-        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Unpaid Fees</div>
-        <div className="mt-2 text-xl font-bold text-red-600">{fmtN(kpis?.unpaid_fee_count)}</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Unpaid Fees
+        </div>
+        <div className="mt-1 text-xs text-gray-400">{periodLabel}</div>
+        <div className="mt-2 text-xl font-bold text-red-600">
+          {fmtN(kpis?.unpaid_fee_count)}
+        </div>
         <div className="mt-1 text-xs text-gray-400">Not yet collected</div>
       </div>
       <div className="rounded-xl border border-gray-200 bg-white px-4 py-4 shadow-sm">
-        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Avg Fee Amount</div>
+        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Avg Fee Amount
+        </div>
+        <div className="mt-1 text-xs text-gray-400">{periodLabel}</div>
         <div className="mt-2 text-xl font-bold text-green-900">{avgFee}</div>
         <div className="mt-1 text-xs text-gray-400">Per fee incurred</div>
       </div>
       <div className="rounded-xl border border-gray-200 bg-white px-4 py-4 shadow-sm">
-        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">Top Item by Fees</div>
-        <div className="mt-2 text-base font-bold text-green-900 truncate">
-          {loading || !kpis ? "—" : (kpis.top_item_name ?? "N/A")}
+        <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          Top Item by Fees
+        </div>
+        <div className="mt-1 text-xs text-gray-400">{periodLabel}</div>
+        <div className="mt-2 truncate text-base font-bold text-green-900">
+          {loading || !kpis ? "—" : kpis.top_item_name ?? "N/A"}
         </div>
         {!loading && kpis?.top_item_name && (
           <div className="mt-1 text-xs text-gray-500">{formatMoney(kpis.top_item_fees)} total</div>
         )}
       </div>
     </div>
+  );
+}
+
+function PopularityKPICards({ kpis, loading, periodLabel }) {
+  const totalBorrows = loading || !kpis ? "Loading..." : formatNumber(kpis.total_borrows);
+  const titlesBorrowed = loading || !kpis ? "Loading..." : formatNumber(kpis.titles_borrowed);
+  const activeHolds = loading || !kpis ? "Loading..." : formatNumber(kpis.active_holds);
+  const restockAlerts = loading || !kpis ? "Loading..." : formatNumber(kpis.restock_alerts);
+  const avgBorrowRate = loading || !kpis ? "Loading..." : formatDecimal(kpis.average_borrow_rate);
+  const avgUtilization =
+    loading || !kpis ? "Loading..." : `${Number(kpis.average_utilization ?? 0).toFixed(1)}%`;
+  const topTitleName = loading ? "Loading..." : kpis?.top_title_name ?? "N/A";
+  const topTitleSubtitle =
+    !loading && kpis?.top_title_name
+      ? `${formatNumber(kpis.top_title_borrows)} borrows`
+      : "Highest checkout volume";
+  const topBorrowerName = loading ? "Loading..." : kpis?.top_borrower_name ?? "N/A";
+  const topBorrowerSubtitle =
+    !loading && kpis?.top_borrower_name
+      ? `${formatNumber(kpis.top_borrower_count)} borrows`
+      : "Highest borrower in this filtered set";
+
+  return (
+    <KpiCardGrid
+      cards={[
+        {
+          label: `Borrows Total (${periodLabel})`,
+          value: totalBorrows,
+          subtitle: "Checkouts across filtered items",
+          tone: "success",
+        },
+        {
+          label: `Titles Borrowed (${periodLabel})`,
+          value: titlesBorrowed,
+          subtitle: "Titles with at least one checkout",
+        },
+        {
+          label: `Active Holds (${periodLabel})`,
+          value: activeHolds,
+          subtitle: "Hold demand in the selected period",
+          tone: "warn",
+        },
+        {
+          label: `Restock Alerts (${periodLabel})`,
+          value: restockAlerts,
+          subtitle: "Titles currently flagged for more copies",
+          tone: "warn",
+        },
+        {
+          label: `Avg Borrow Rate (${periodLabel})`,
+          value: avgBorrowRate,
+          subtitle: "Checkouts per owned copy",
+        },
+        {
+          label: `Avg Utilization (${periodLabel})`,
+          value: avgUtilization,
+          subtitle: "Copies used during the period",
+        },
+        {
+          label: `Top Borrowed Title (${periodLabel})`,
+          value: topTitleName,
+          subtitle: topTitleSubtitle,
+          compact: true,
+        },
+        {
+          label: `Top Borrower (${periodLabel})`,
+          value: topBorrowerName,
+          subtitle: topBorrowerSubtitle,
+          compact: true,
+        },
+      ]}
+    />
+  );
+}
+
+function PatronKPICards({ kpis, loading, periodLabel }) {
+  const activePatrons = loading || !kpis ? "Loading..." : formatNumber(kpis.active_patrons);
+  const totalBorrows = loading || !kpis ? "Loading..." : formatNumber(kpis.total_borrows);
+  const totalHolds = loading || !kpis ? "Loading..." : formatNumber(kpis.total_holds);
+  const patronsWithDebt =
+    loading || !kpis ? "Loading..." : formatNumber(kpis.patrons_with_debt);
+  const outstandingBalance =
+    loading || !kpis ? "Loading..." : formatMoney(kpis.outstanding_balance);
+  const avgBorrowRate =
+    loading || !kpis ? "Loading..." : formatDecimal(kpis.average_borrow_rate);
+  const topPatronName = loading ? "Loading..." : kpis?.top_patron_name ?? "N/A";
+  const topPatronSubtitle =
+    !loading && kpis?.top_patron_name
+      ? `${formatNumber(kpis.top_patron_borrows)} borrows`
+      : "Highest activity in the filtered set";
+  const topUnpaidPatronName = loading ? "Loading..." : kpis?.top_unpaid_patron_name ?? "N/A";
+  const topUnpaidPatronSubtitle =
+    !loading && kpis?.top_unpaid_patron_name
+      ? `${formatNumber(kpis.top_unpaid_fee_count)} unpaid fees`
+      : "Most unpaid fees in this filtered set";
+
+  return (
+    <KpiCardGrid
+      cards={[
+        {
+          label: `Active Patrons (${periodLabel})`,
+          value: activePatrons,
+          subtitle: "Patrons matching the current filters",
+          tone: "success",
+        },
+        {
+          label: `Borrows Total (${periodLabel})`,
+          value: totalBorrows,
+          subtitle: "Borrow transactions in the period",
+        },
+        {
+          label: `Holds Total (${periodLabel})`,
+          value: totalHolds,
+          subtitle: "Active holds in the filtered set",
+        },
+        {
+          label: `Patrons With Debt (${periodLabel})`,
+          value: patronsWithDebt,
+          subtitle: "Accounts carrying unpaid fees",
+          tone: "danger",
+        },
+        {
+          label: `Outstanding Balance (${periodLabel})`,
+          value: outstandingBalance,
+          subtitle: "Unpaid balance tied to these patrons",
+          tone: "warn",
+        },
+        {
+          label: `Avg Borrow Rate (${periodLabel})`,
+          value: avgBorrowRate,
+          subtitle: "Average patron borrowing pace",
+        },
+        {
+          label: `Most Active Patron (${periodLabel})`,
+          value: topPatronName,
+          subtitle: topPatronSubtitle,
+          compact: true,
+        },
+        {
+          label: `Most Unpaid Fees (${periodLabel})`,
+          value: topUnpaidPatronName,
+          subtitle: topUnpaidPatronSubtitle,
+          compact: true,
+        },
+      ]}
+    />
   );
 }

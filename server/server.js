@@ -269,6 +269,12 @@ const server = http.createServer((req, res) => {
                 reports.getReportsOverview(req, res);
             });
         });
+    } else if (req.method === 'GET' && req.url.startsWith('/api/reports/popularity-overview')) {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                reports.getPopularityOverview(req, res);
+            });
+        });
     } else if (req.method === 'GET' && req.url.startsWith('/api/reports/popularity')) {
         verifyToken(req, res, () => {
             requireAdmin(req, res, () => {
@@ -283,6 +289,12 @@ const server = http.createServer((req, res) => {
             });
         }); 
     // admin-only — reports on popularity
+    } else if (req.method === 'GET' && req.url.startsWith('/api/reports/patrons-overview')) {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                reports.getPatronsOverview(req, res);
+            });
+        });
     } else if (req.method === 'GET' && req.url.startsWith('/api/reports/patrons')) {
         verifyToken(req, res, () => {
             requireAdmin(req, res, () => {

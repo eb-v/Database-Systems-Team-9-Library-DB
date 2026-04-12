@@ -422,6 +422,31 @@ function getSortValue(row, sortKey) {
     return row[sortKey];
 }
 
+function sumBy(rows, selector) {
+    return rows.reduce((total, row) => total + Number(selector(row) ?? 0), 0);
+}
+
+function averageBy(rows, selector, decimals = 2, predicate = () => true) {
+    const matchingRows = rows.filter(predicate);
+
+    if (!matchingRows.length) {
+        return 0;
+    }
+
+    const total = sumBy(matchingRows, selector);
+    return Number((total / matchingRows.length).toFixed(decimals));
+}
+
+function findTopRow(rows, selector) {
+    if (!rows.length) {
+        return null;
+    }
+
+    return rows.reduce((topRow, currentRow) =>
+        Number(selector(currentRow) ?? 0) > Number(selector(topRow) ?? 0) ? currentRow : topRow
+    );
+}
+
 async function getReportsOverview(req, res) {
     const filters = getPeriodFilters(getSearchParams(req));
     const rangeParams = getDateRangeParams(filters);
@@ -501,124 +526,318 @@ async function getReportsOverview(req, res) {
     }
 }
 
-async function getPopularityReport(req, res) {
-    const filters = getPopularityFilters(getSearchParams(req));
+async function fetchPopularityRows(filters) {
     const borrowRangeParams = getDateRangeParams(filters);
     const holdRangeParams = getDateRangeParams(filters);
     const typeClause = filters.types.length
         ? `i.Item_type IN (${filters.types.map(() => '?').join(', ')})`
         : '1 = 1';
 
-    try {
-        const [rows] = await db.query(
-            `SELECT
-                i.Item_ID,
-                i.Item_name,
-                i.Item_type,
-                cd.CD_type,
-                dv.Device_type,
-                COALESCE(b.genre, cd.genre) AS genre,
-                b.author_firstName,
-                b.author_lastName,
-                COALESCE(copy_stats.num_copies, 0) AS num_copies,
-                COALESCE(copy_stats.available_copies, 0) AS available_copies,
-                COALESCE(copy_stats.checked_out_copies, 0) AS checked_out_copies,
-                COALESCE(borrow_stats.times_checked_out, 0) AS times_checked_out,
-                COALESCE(borrow_stats.unique_borrowers, 0) AS unique_borrowers,
-                COALESCE(borrow_stats.copies_used_in_period, 0) AS copies_used_in_period,
-                borrow_stats.last_borrow_date,
-                COALESCE(hold_stats.active_holds, 0) AS active_holds,
-                COALESCE(
-                    ROUND(
-                        COALESCE(borrow_stats.times_checked_out, 0) /
-                        NULLIF(copy_stats.num_copies, 0),
-                        2
-                    ),
-                    0.00
-                ) AS borrowing_rate,
-                COALESCE(
-                    ROUND(
-                        (COALESCE(borrow_stats.copies_used_in_period, 0) * 100.0) /
-                        NULLIF(copy_stats.num_copies, 0),
-                        1
-                    ),
-                    0.0
-                ) AS utilization_rate,
-                COALESCE(
-                    ROUND(
-                        (
-                            COALESCE(hold_stats.active_holds, 0) +
-                            COALESCE(borrow_stats.times_checked_out, 0)
-                        ) /
-                        NULLIF(copy_stats.num_copies, 0),
-                        2
-                    ),
-                    0.00
-                ) AS demand_ratio
-            FROM Item i
-            LEFT JOIN Book b ON i.Item_ID = b.Item_ID
-            LEFT JOIN CD cd ON i.Item_ID = cd.Item_ID
-            LEFT JOIN Device dv ON i.Item_ID = dv.Item_ID
-            LEFT JOIN (
-                SELECT
-                    Item_ID,
-                    COUNT(*) AS num_copies,
-                    SUM(CASE WHEN Copy_status = 1 THEN 1 ELSE 0 END) AS available_copies,
-                    SUM(CASE WHEN Copy_status = 2 THEN 1 ELSE 0 END) AS checked_out_copies
-                FROM Copy
-                GROUP BY Item_ID
-            ) copy_stats ON i.Item_ID = copy_stats.Item_ID
-            LEFT JOIN (
-                SELECT
-                    cp.Item_ID,
-                    COUNT(DISTINCT bi.BorrowedItem_ID) AS times_checked_out,
-                    COUNT(DISTINCT bi.Person_ID) AS unique_borrowers,
-                    COUNT(DISTINCT bi.Copy_ID) AS copies_used_in_period,
-                    MAX(bi.borrow_date) AS last_borrow_date
-                FROM Copy cp
-                LEFT JOIN BorrowedItem bi
-                    ON cp.Copy_ID = bi.Copy_ID
-                WHERE ${getPeriodRangeClause('bi.borrow_date')}
-                GROUP BY cp.Item_ID
-            ) borrow_stats ON i.Item_ID = borrow_stats.Item_ID
-            LEFT JOIN (
-                SELECT
-                    cp.Item_ID,
-                    COUNT(DISTINCT h.Hold_ID) AS active_holds
-                FROM Copy cp
-                JOIN HoldItem h
-                    ON cp.Copy_ID = h.Copy_ID
-                WHERE h.hold_status <> 0
-                  AND ${getPeriodRangeClause('h.hold_date')}
-                GROUP BY cp.Item_ID
-            ) hold_stats ON i.Item_ID = hold_stats.Item_ID
-            WHERE ${typeClause}
-              AND (? IS NULL OR LOWER(i.Item_name) LIKE ?)
-              AND (
-                  ? IS NULL OR
-                  i.Item_type <> 1 OR
-                  LOWER(COALESCE(b.genre, '')) LIKE ?
-              )
-              AND (
-                  ? IS NULL OR
-                  i.Item_type <> 1 OR
-                  ${AUTHOR_NAME_SQL} LIKE ?
-              )
-              AND (? IS NULL OR i.Item_type <> 2 OR cd.CD_type = ?)
-              AND (? IS NULL OR i.Item_type <> 3 OR dv.Device_type = ?)`,
-            [
-                ...borrowRangeParams,
-                ...holdRangeParams,
-                ...filters.types,
-                filters.itemNamePattern, filters.itemNamePattern,
-                filters.genrePattern, filters.genrePattern,
-                filters.authorNamePattern, filters.authorNamePattern,
-                filters.cdType, filters.cdType,
-                filters.deviceType, filters.deviceType,
-            ]
-        );
+    const [rows] = await db.query(
+        `SELECT
+            i.Item_ID,
+            i.Item_name,
+            i.Item_type,
+            cd.CD_type,
+            dv.Device_type,
+            COALESCE(b.genre, cd.genre) AS genre,
+            b.author_firstName,
+            b.author_lastName,
+            COALESCE(copy_stats.num_copies, 0) AS num_copies,
+            COALESCE(copy_stats.available_copies, 0) AS available_copies,
+            COALESCE(copy_stats.checked_out_copies, 0) AS checked_out_copies,
+            COALESCE(borrow_stats.times_checked_out, 0) AS times_checked_out,
+            COALESCE(borrow_stats.unique_borrowers, 0) AS unique_borrowers,
+            COALESCE(borrow_stats.copies_used_in_period, 0) AS copies_used_in_period,
+            borrow_stats.last_borrow_date,
+            COALESCE(hold_stats.active_holds, 0) AS active_holds,
+            COALESCE(
+                ROUND(
+                    COALESCE(borrow_stats.times_checked_out, 0) /
+                    NULLIF(copy_stats.num_copies, 0),
+                    2
+                ),
+                0.00
+            ) AS borrowing_rate,
+            COALESCE(
+                ROUND(
+                    (COALESCE(borrow_stats.copies_used_in_period, 0) * 100.0) /
+                    NULLIF(copy_stats.num_copies, 0),
+                    1
+                ),
+                0.0
+            ) AS utilization_rate,
+            COALESCE(
+                ROUND(
+                    (
+                        COALESCE(hold_stats.active_holds, 0) +
+                        COALESCE(borrow_stats.times_checked_out, 0)
+                    ) /
+                    NULLIF(copy_stats.num_copies, 0),
+                    2
+                ),
+                0.00
+            ) AS demand_ratio
+        FROM Item i
+        LEFT JOIN Book b ON i.Item_ID = b.Item_ID
+        LEFT JOIN CD cd ON i.Item_ID = cd.Item_ID
+        LEFT JOIN Device dv ON i.Item_ID = dv.Item_ID
+        LEFT JOIN (
+            SELECT
+                Item_ID,
+                COUNT(*) AS num_copies,
+                SUM(CASE WHEN Copy_status = 1 THEN 1 ELSE 0 END) AS available_copies,
+                SUM(CASE WHEN Copy_status = 2 THEN 1 ELSE 0 END) AS checked_out_copies
+            FROM Copy
+            GROUP BY Item_ID
+        ) copy_stats ON i.Item_ID = copy_stats.Item_ID
+        LEFT JOIN (
+            SELECT
+                cp.Item_ID,
+                COUNT(DISTINCT bi.BorrowedItem_ID) AS times_checked_out,
+                COUNT(DISTINCT bi.Person_ID) AS unique_borrowers,
+                COUNT(DISTINCT bi.Copy_ID) AS copies_used_in_period,
+                MAX(bi.borrow_date) AS last_borrow_date
+            FROM Copy cp
+            LEFT JOIN BorrowedItem bi
+                ON cp.Copy_ID = bi.Copy_ID
+            WHERE ${getPeriodRangeClause('bi.borrow_date')}
+            GROUP BY cp.Item_ID
+        ) borrow_stats ON i.Item_ID = borrow_stats.Item_ID
+        LEFT JOIN (
+            SELECT
+                cp.Item_ID,
+                COUNT(DISTINCT h.Hold_ID) AS active_holds
+            FROM Copy cp
+            JOIN HoldItem h
+                ON cp.Copy_ID = h.Copy_ID
+            WHERE h.hold_status <> 0
+              AND ${getPeriodRangeClause('h.hold_date')}
+            GROUP BY cp.Item_ID
+        ) hold_stats ON i.Item_ID = hold_stats.Item_ID
+        WHERE ${typeClause}
+          AND (? IS NULL OR LOWER(i.Item_name) LIKE ?)
+          AND (
+              ? IS NULL OR
+              i.Item_type <> 1 OR
+              LOWER(COALESCE(b.genre, '')) LIKE ?
+          )
+          AND (
+              ? IS NULL OR
+              i.Item_type <> 1 OR
+              ${AUTHOR_NAME_SQL} LIKE ?
+          )
+          AND (? IS NULL OR i.Item_type <> 2 OR cd.CD_type = ?)
+          AND (? IS NULL OR i.Item_type <> 3 OR dv.Device_type = ?)`,
+        [
+            ...borrowRangeParams,
+            ...holdRangeParams,
+            ...filters.types,
+            filters.itemNamePattern, filters.itemNamePattern,
+            filters.genrePattern, filters.genrePattern,
+            filters.authorNamePattern, filters.authorNamePattern,
+            filters.cdType, filters.cdType,
+            filters.deviceType, filters.deviceType,
+        ]
+    );
 
-        const rowsWithRecommendations = rows.map(addStockRecommendation);
+    return rows.map(addStockRecommendation);
+}
+
+async function fetchTopPopularityBorrower(filters) {
+    const borrowRangeParams = getDateRangeParams(filters);
+    const typeClause = filters.types.length
+        ? `i.Item_type IN (${filters.types.map(() => '?').join(', ')})`
+        : '1 = 1';
+
+    const [rows] = await db.query(
+        `SELECT
+            p.Person_ID,
+            p.First_name,
+            p.Last_name,
+            COUNT(DISTINCT bi.BorrowedItem_ID) AS borrow_count
+        FROM BorrowedItem bi
+        JOIN Person p
+            ON bi.Person_ID = p.Person_ID
+        JOIN Copy cp
+            ON bi.Copy_ID = cp.Copy_ID
+        JOIN Item i
+            ON cp.Item_ID = i.Item_ID
+        LEFT JOIN Book b
+            ON i.Item_ID = b.Item_ID
+        LEFT JOIN CD cd
+            ON i.Item_ID = cd.Item_ID
+        LEFT JOIN Device dv
+            ON i.Item_ID = dv.Item_ID
+        WHERE ${getPeriodRangeClause('bi.borrow_date')}
+          AND ${typeClause}
+          AND (? IS NULL OR LOWER(i.Item_name) LIKE ?)
+          AND (
+              ? IS NULL OR
+              i.Item_type <> 1 OR
+              LOWER(COALESCE(b.genre, '')) LIKE ?
+          )
+          AND (
+              ? IS NULL OR
+              i.Item_type <> 1 OR
+              ${AUTHOR_NAME_SQL} LIKE ?
+          )
+          AND (? IS NULL OR i.Item_type <> 2 OR cd.CD_type = ?)
+          AND (? IS NULL OR i.Item_type <> 3 OR dv.Device_type = ?)
+        GROUP BY p.Person_ID, p.First_name, p.Last_name
+        ORDER BY borrow_count DESC, p.Last_name ASC, p.First_name ASC
+        LIMIT 1`,
+        [
+            ...borrowRangeParams,
+            ...filters.types,
+            filters.itemNamePattern, filters.itemNamePattern,
+            filters.genrePattern, filters.genrePattern,
+            filters.authorNamePattern, filters.authorNamePattern,
+            filters.cdType, filters.cdType,
+            filters.deviceType, filters.deviceType,
+        ]
+    );
+
+    return rows[0] ?? null;
+}
+
+async function fetchPatronRows(filters, includeLimit = true) {
+    const borrowRangeParams = getDateRangeParams(filters);
+    const holdRangeParams = getDateRangeParams(filters);
+    const feeRangeParams = getDateRangeParams(filters);
+
+    const [rows] = await db.query(
+        `SELECT
+            p.Person_ID,
+            p.First_name,
+            p.Last_name,
+            p.role,
+            p.account_status,
+            p.borrow_status,
+            p.signup_date,
+            TIMESTAMPDIFF(MONTH, p.signup_date, CURDATE()) AS patrons_months,
+            COALESCE(borrow_stats.borrow_count, 0) AS borrow_count,
+            COALESCE(borrow_stats.unique_titles_borrowed, 0) AS unique_titles_borrowed,
+            borrow_stats.last_borrow_date,
+            CASE
+                WHEN borrow_stats.last_borrow_date IS NULL THEN NULL
+                ELSE DATEDIFF(CURDATE(), borrow_stats.last_borrow_date)
+            END AS days_since_last_borrow,
+            COALESCE(hold_stats.active_holds, 0) AS active_holds,
+            COALESCE(fee_stats.unpaid_total, 0) AS unpaid_total,
+            COALESCE(fee_stats.unpaid_fee_count, 0) AS unpaid_fee_count,
+            COALESCE(
+                ROUND(COALESCE(borrow_stats.borrow_count, 0) /
+                    NULLIF(
+                        CASE
+                            WHEN ? = 'month' THEN 1
+                            WHEN ? = 'quarter' THEN 3
+                            WHEN ? = 'year' THEN 12
+                            ELSE TIMESTAMPDIFF(MONTH, p.signup_date, CURDATE())
+                        END,
+                        0
+                    ),
+                    2
+                ),
+                0.00
+            ) AS borrow_rate
+        FROM Person p
+        LEFT JOIN (
+            SELECT
+                bi.Person_ID,
+                COUNT(DISTINCT bi.BorrowedItem_ID) AS borrow_count,
+                COUNT(DISTINCT cp.Item_ID) AS unique_titles_borrowed,
+                MAX(bi.borrow_date) AS last_borrow_date
+            FROM BorrowedItem bi
+            LEFT JOIN Copy cp
+                ON bi.Copy_ID = cp.Copy_ID
+            LEFT JOIN Item i
+                ON cp.Item_ID = i.Item_ID
+            WHERE ${getPeriodRangeClause('bi.borrow_date')}
+              AND (? IS NULL OR LOWER(i.Item_name) LIKE ?)
+            GROUP BY bi.Person_ID
+        ) borrow_stats ON p.Person_ID = borrow_stats.Person_ID
+        LEFT JOIN (
+            SELECT
+                h.Person_ID,
+                COUNT(DISTINCT Hold_ID) AS active_holds
+            FROM HoldItem h
+            LEFT JOIN Copy cp
+                ON h.Copy_ID = cp.Copy_ID
+            LEFT JOIN Item i
+                ON cp.Item_ID = i.Item_ID
+            WHERE hold_status = 1
+              AND ${getPeriodRangeClause('hold_date')}
+              AND (? IS NULL OR LOWER(i.Item_name) LIKE ?)
+            GROUP BY h.Person_ID
+        ) hold_stats ON p.Person_ID = hold_stats.Person_ID
+        LEFT JOIN (
+            SELECT
+                f.Person_ID,
+                COUNT(*) AS unpaid_fee_count,
+                COALESCE(SUM(f.fee_amount), 0) AS unpaid_total
+            FROM FeeOwed f
+            LEFT JOIN BorrowedItem bi
+                ON f.BorrowedItem_ID = bi.BorrowedItem_ID
+            LEFT JOIN Copy cp
+                ON bi.Copy_ID = cp.Copy_ID
+            LEFT JOIN Item i
+                ON cp.Item_ID = i.Item_ID
+            LEFT JOIN FeePayment fp
+                ON f.Fine_ID = fp.Fine_ID
+            WHERE fp.Fine_ID IS NULL
+              AND ${getPeriodRangeClause('f.date_owed', true)}
+              AND (? IS NULL OR LOWER(i.Item_name) LIKE ?)
+            GROUP BY f.Person_ID
+        ) fee_stats ON p.Person_ID = fee_stats.Person_ID
+        WHERE (? IS NULL OR p.role = ?)
+          AND (
+              ? IS NULL OR
+              ${PERSON_NAME_SQL} LIKE ?
+          )
+          AND p.signup_date IS NOT NULL
+          AND COALESCE(borrow_stats.borrow_count, 0) >= ?
+          AND (? = 0 OR COALESCE(fee_stats.unpaid_total, 0) > 0)
+          AND (
+              ? IS NULL OR
+              COALESCE(borrow_stats.borrow_count, 0) > 0 OR
+              COALESCE(hold_stats.active_holds, 0) > 0 OR
+              COALESCE(fee_stats.unpaid_fee_count, 0) > 0
+          )
+        ORDER BY ${filters.orderBy} ${filters.orderDirection}, p.Last_name ASC, p.First_name ASC
+        ${includeLimit ? 'LIMIT ?' : ''}`,
+        [
+            filters.periodType,
+            filters.periodType,
+            filters.periodType,
+            ...borrowRangeParams,
+            filters.itemNamePattern,
+            filters.itemNamePattern,
+            ...holdRangeParams,
+            filters.itemNamePattern,
+            filters.itemNamePattern,
+            ...feeRangeParams,
+            filters.itemNamePattern,
+            filters.itemNamePattern,
+            filters.role,
+            filters.role,
+            filters.borrowerNamePattern,
+            filters.borrowerNamePattern,
+            filters.minBorrows,
+            filters.withUnpaidOnly ? 1 : 0,
+            filters.itemNamePattern,
+            ...(includeLimit ? [filters.limit] : []),
+        ]
+    );
+
+    return rows;
+}
+
+async function getPopularityReport(req, res) {
+    const filters = getPopularityFilters(getSearchParams(req));
+
+    try {
+        const rowsWithRecommendations = await fetchPopularityRows(filters);
         const sortedRows = sortRows(
             rowsWithRecommendations,
             filters.orderBy,
@@ -693,138 +912,84 @@ async function getFinesReport(req, res) {
 
 async function getPatronsActivityReport(req, res) {
     const filters = getPatronFilters(getSearchParams(req));
-    const borrowRangeParams = getDateRangeParams(filters);
-    const holdRangeParams = getDateRangeParams(filters);
-    const feeRangeParams = getDateRangeParams(filters);
 
     try {
-        const [rows] = await db.query(
-            `SELECT
-                p.Person_ID,
-                p.First_name,
-                p.Last_name,
-                p.role,
-                p.account_status,
-                p.borrow_status,
-                p.signup_date,
-                TIMESTAMPDIFF(MONTH, p.signup_date, CURDATE()) AS patrons_months,
-                COALESCE(borrow_stats.borrow_count, 0) AS borrow_count,
-                COALESCE(borrow_stats.unique_titles_borrowed, 0) AS unique_titles_borrowed,
-                borrow_stats.last_borrow_date,
-                CASE
-                    WHEN borrow_stats.last_borrow_date IS NULL THEN NULL
-                    ELSE DATEDIFF(CURDATE(), borrow_stats.last_borrow_date)
-                END AS days_since_last_borrow,
-                COALESCE(hold_stats.active_holds, 0) AS active_holds,
-                COALESCE(fee_stats.unpaid_total, 0) AS unpaid_total,
-                COALESCE(fee_stats.unpaid_fee_count, 0) AS unpaid_fee_count,
-                COALESCE(
-                    ROUND(COALESCE(borrow_stats.borrow_count, 0) /
-                        NULLIF(
-                            CASE
-                                WHEN ? = 'month' THEN 1
-                                WHEN ? = 'quarter' THEN 3
-                                WHEN ? = 'year' THEN 12
-                                ELSE TIMESTAMPDIFF(MONTH, p.signup_date, CURDATE())
-                            END,
-                            0
-                        ),
-                        2
-                    ),
-                    0.00
-                ) AS borrow_rate
-            FROM Person p
-            LEFT JOIN (
-                SELECT
-                    bi.Person_ID,
-                    COUNT(DISTINCT bi.BorrowedItem_ID) AS borrow_count,
-                    COUNT(DISTINCT cp.Item_ID) AS unique_titles_borrowed,
-                    MAX(bi.borrow_date) AS last_borrow_date
-                FROM BorrowedItem bi
-                LEFT JOIN Copy cp
-                    ON bi.Copy_ID = cp.Copy_ID
-                LEFT JOIN Item i
-                    ON cp.Item_ID = i.Item_ID
-                WHERE ${getPeriodRangeClause('bi.borrow_date')}
-                  AND (? IS NULL OR LOWER(i.Item_name) LIKE ?)
-                GROUP BY bi.Person_ID
-            ) borrow_stats ON p.Person_ID = borrow_stats.Person_ID
-            LEFT JOIN (
-                SELECT
-                    h.Person_ID,
-                    COUNT(DISTINCT Hold_ID) AS active_holds
-                FROM HoldItem h
-                LEFT JOIN Copy cp
-                    ON h.Copy_ID = cp.Copy_ID
-                LEFT JOIN Item i
-                    ON cp.Item_ID = i.Item_ID
-                WHERE hold_status = 1
-                  AND ${getPeriodRangeClause('hold_date')}
-                  AND (? IS NULL OR LOWER(i.Item_name) LIKE ?)
-                GROUP BY h.Person_ID
-            ) hold_stats ON p.Person_ID = hold_stats.Person_ID
-            LEFT JOIN (
-                SELECT
-                    f.Person_ID,
-                    COUNT(*) AS unpaid_fee_count,
-                    COALESCE(SUM(f.fee_amount), 0) AS unpaid_total
-                FROM FeeOwed f
-                LEFT JOIN BorrowedItem bi
-                    ON f.BorrowedItem_ID = bi.BorrowedItem_ID
-                LEFT JOIN Copy cp
-                    ON bi.Copy_ID = cp.Copy_ID
-                LEFT JOIN Item i
-                    ON cp.Item_ID = i.Item_ID
-                LEFT JOIN FeePayment fp
-                    ON f.Fine_ID = fp.Fine_ID
-                WHERE fp.Fine_ID IS NULL
-                  AND ${getPeriodRangeClause('f.date_owed', true)}
-                  AND (? IS NULL OR LOWER(i.Item_name) LIKE ?)
-                GROUP BY f.Person_ID
-            ) fee_stats ON p.Person_ID = fee_stats.Person_ID
-            WHERE (? IS NULL OR p.role = ?)
-              AND (
-                  ? IS NULL OR
-                  ${PERSON_NAME_SQL} LIKE ?
-              )
-              AND p.signup_date IS NOT NULL
-              AND COALESCE(borrow_stats.borrow_count, 0) >= ?
-              AND (? = 0 OR COALESCE(fee_stats.unpaid_total, 0) > 0)
-              AND (
-                  ? IS NULL OR
-                  COALESCE(borrow_stats.borrow_count, 0) > 0 OR
-                  COALESCE(hold_stats.active_holds, 0) > 0 OR
-                  COALESCE(fee_stats.unpaid_fee_count, 0) > 0
-              )
-            ORDER BY ${filters.orderBy} ${filters.orderDirection}, p.Last_name ASC, p.First_name ASC
-            LIMIT ?`,
-            [
-                filters.periodType,
-                filters.periodType,
-                filters.periodType,
-                ...borrowRangeParams,
-                filters.itemNamePattern,
-                filters.itemNamePattern,
-                ...holdRangeParams,
-                filters.itemNamePattern,
-                filters.itemNamePattern,
-                ...feeRangeParams,
-                filters.itemNamePattern,
-                filters.itemNamePattern,
-                filters.role,
-                filters.role,
-                filters.borrowerNamePattern,
-                filters.borrowerNamePattern,
-                filters.minBorrows,
-                filters.withUnpaidOnly ? 1 : 0,
-                filters.itemNamePattern,
-                filters.limit,
-            ]
-        );
+        const rows = await fetchPatronRows(filters);
 
         sendJson(res, 200, rows);
     } catch (err) {
         sendReportError(res, 'patrons activity report', err);
+    }
+}
+
+async function getPopularityOverview(req, res) {
+    const filters = getPopularityFilters(getSearchParams(req));
+
+    try {
+        const rows = await fetchPopularityRows(filters);
+        const topTitle = findTopRow(rows, (row) => row.times_checked_out);
+        const topBorrower = await fetchTopPopularityBorrower(filters);
+
+        sendJson(res, 200, {
+            total_borrows: sumBy(rows, (row) => row.times_checked_out),
+            titles_borrowed: rows.filter((row) => Number(row.times_checked_out) > 0).length,
+            active_holds: sumBy(rows, (row) => row.active_holds),
+            restock_alerts: rows.filter(
+                (row) => Number(row.recommended_additional_copies) > 0
+            ).length,
+            average_borrow_rate: averageBy(
+                rows,
+                (row) => row.borrowing_rate,
+                2,
+                (row) => Number(row.num_copies) > 0
+            ),
+            average_utilization: averageBy(
+                rows,
+                (row) => row.utilization_rate,
+                1,
+                (row) => Number(row.num_copies) > 0
+            ),
+            top_title_name: topTitle?.Item_name ?? null,
+            top_title_borrows: Number(topTitle?.times_checked_out ?? 0),
+            top_borrower_name: topBorrower
+                ? `${topBorrower.First_name} ${topBorrower.Last_name}`
+                : null,
+            top_borrower_count: Number(topBorrower?.borrow_count ?? 0),
+        });
+    } catch (err) {
+        sendReportError(res, 'popularity overview', err);
+    }
+}
+
+async function getPatronsOverview(req, res) {
+    const filters = getPatronFilters(getSearchParams(req));
+
+    try {
+        const rows = await fetchPatronRows(filters, false);
+        const topPatron = findTopRow(rows, (row) => row.borrow_count);
+        const topUnpaidPatron = findTopRow(rows, (row) => row.unpaid_fee_count);
+
+        sendJson(res, 200, {
+            active_patrons: rows.length,
+            total_borrows: sumBy(rows, (row) => row.borrow_count),
+            total_holds: sumBy(rows, (row) => row.active_holds),
+            patrons_with_debt: rows.filter((row) => Number(row.unpaid_total) > 0).length,
+            outstanding_balance: sumBy(rows, (row) => row.unpaid_total),
+            average_borrow_rate: averageBy(rows, (row) => row.borrow_rate, 2),
+            recent_patrons: rows.filter(
+                (row) => row.days_since_last_borrow != null && Number(row.days_since_last_borrow) <= 30
+            ).length,
+            top_patron_name: topPatron
+                ? `${topPatron.First_name} ${topPatron.Last_name}`
+                : null,
+            top_patron_borrows: Number(topPatron?.borrow_count ?? 0),
+            top_unpaid_patron_name: topUnpaidPatron
+                ? `${topUnpaidPatron.First_name} ${topUnpaidPatron.Last_name}`
+                : null,
+            top_unpaid_fee_count: Number(topUnpaidPatron?.unpaid_fee_count ?? 0),
+        });
+    } catch (err) {
+        sendReportError(res, 'patrons overview', err);
     }
 }
 
@@ -950,8 +1115,10 @@ async function getRevenueOverview(req, res) {
 module.exports = {
     getReportsOverview,
     getPopularityReport,
+    getPopularityOverview,
     getFinesReport,
     getPatronsActivityReport,
+    getPatronsOverview,
     getRevenueReport,
     getRevenueOverview,
 };
