@@ -1,20 +1,21 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { apiFetch } from "../api";
+import Banner from "../components/Banner";
 
 export default function LoginPage() {
   const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState({ text: "", success: true });
 
   const navigate = useNavigate();
   
   const handleSubmit = async (e) => {
     e.preventDefault();
-    setMessage("");
+    setMessage({ text: "", success: true });
 
     if (!username.trim() || !password.trim()) {
-      setMessage("Please enter your username and password.");
+      setMessage({ text: "Please enter your username and password.", success: false });
       return;
     }
 
@@ -36,7 +37,7 @@ export default function LoginPage() {
         data.staff_permissions == null ? null : Number(data.staff_permissions);
 
       if (!response.ok) {
-        setMessage(data.error || "Login failed.");
+        setMessage({ text: data.error || "Login failed.", success: false });
         return;
       }
 
@@ -64,11 +65,11 @@ export default function LoginPage() {
           navigate("/staff");
         }
       } else {
-        setMessage("Unable to determine account role.");
+        setMessage({ text: "Unable to determine account role.", success: false });
       }
     } catch (error) {
       console.error(error);
-      setMessage("Unable to connect to the server.");
+      setMessage({ text: "Unable to connect to the server.", success: false });
     }
   };
 
@@ -115,11 +116,7 @@ export default function LoginPage() {
           </button>
         </form>
 
-        {message && (
-          <p className="text-center text-red-600 text-sm mt-4">
-            {message}
-          </p>
-        )}
+        <Banner message={message} onDismiss={() => setMessage({ text: "", success: true })} />
 
         <p className="text-center text-sm text-gray-600 mt-4">
           Don't have an account?{" "}

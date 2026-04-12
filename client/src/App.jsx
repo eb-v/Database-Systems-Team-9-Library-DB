@@ -16,6 +16,7 @@ import HoldsPage from "./pages/HoldsPage";
 import ViewAccountPage from "./pages/ViewAccountPage";
 import RentARoomPage from "./pages/RentARoomPage";
 import RentADevicePage from "./pages/RentADevicePage";
+import DeviceDetailPage from "./pages/DeviceDetailPage";
 import AdminPage from "./pages/AdminPage";
 import ManageStaffPage from "./pages/ManageStaffPage";
 import ReportsPage from "./pages/ReportsPage";
@@ -41,6 +42,7 @@ export default function App() {
       <Route path="/view-account" element={<ViewAccountPage />} />
       <Route path="/rent-a-room" element={<RentARoomPage />} />
       <Route path="/rent-a-device" element={<RentADevicePage />} />
+      <Route path="/rent-a-device/:id" element={<DeviceDetailPage />} />
       <Route path="/admin" element={<AdminPage />} />
       <Route path="/manage-staff" element={<ManageStaffPage />} />
       <Route path="/reports" element={<ReportsPage />} />
