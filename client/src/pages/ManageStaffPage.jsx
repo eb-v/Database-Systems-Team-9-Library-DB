@@ -395,7 +395,7 @@ export default function ManageStaffPage() {
                       type="button"
                       onClick={() => setShowDeactivateConfirm(true)}
                       disabled={editLoading || deactivateLoading}
-                      className="rounded-lg border border-red-300 bg-white px-5 py-3 font-semibold text-red-700 hover:bg-red-50 disabled:opacity-50"
+                      className="rounded-lg bg-red-600 px-5 py-3 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
                     >
                       Deactivate Staff
                     </button>
