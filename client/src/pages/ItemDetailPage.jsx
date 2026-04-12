@@ -3,6 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 import ItemImage from "../components/ItemImage";
 import { apiFetch } from "../api";
+import Banner from "../components/Banner";
 
 export default function ItemDetailPage() {
   const { id } = useParams();
@@ -11,7 +12,7 @@ export default function ItemDetailPage() {
   const [item, setItem] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState({ text: "", success: true });
 
   const token = sessionStorage.getItem("token");
   const personId = parseInt(sessionStorage.getItem("personId"));
@@ -41,7 +42,7 @@ export default function ItemDetailPage() {
   const availableCount = item?.copies?.filter((c) => c.Copy_status === 1).length ?? 0;
 
   const handleBorrow = async () => {
-    setMessage("");
+    setMessage({ text: "", success: true });
     try {
       const response = await apiFetch("/api/borrow", {
         method: "POST",
@@ -53,17 +54,17 @@ export default function ItemDetailPage() {
       });
       const data = await response.json();
       if (!response.ok) {
-        setMessage(data.error || "Failed to borrow item.");
+        setMessage({ text: data.error || "Failed to borrow item.", success: false });
         return;
       }
-      setMessage(`Item borrowed successfully! Return by: ${data.return_by}`);
+      setMessage({ text: `Item borrowed successfully! Return by: ${data.return_by}`, success: true });
     } catch {
-      setMessage("Unable to connect to the server.");
+      setMessage({ text: "Unable to connect to the server.", success: false });
     }
   };
 
   const handleHold = async () => {
-    setMessage("");
+    setMessage({ text: "", success: true });
     try {
       const response = await apiFetch("/api/holds", {
         method: "POST",
@@ -75,12 +76,12 @@ export default function ItemDetailPage() {
       });
       const data = await response.json();
       if (!response.ok) {
-        setMessage(data.error || "Failed to place hold.");
+        setMessage({ text: data.error || "Failed to place hold.", success: false });
         return;
       }
-      setMessage(`Hold placed successfully! Queue position: ${data.queue_position}`);
+      setMessage({ text: `Hold placed successfully! Queue position: ${data.queue_position}`, success: true });
     } catch {
-      setMessage("Unable to connect to the server.");
+      setMessage({ text: "Unable to connect to the server.", success: false });
     }
   };
 
@@ -154,11 +155,7 @@ export default function ItemDetailPage() {
             </button>
           </div>
 
-          {message && (
-            <p className={`mt-4 text-sm font-medium ${message.includes("success") ? "text-green-700" : "text-red-600"}`}>
-              {message}
-            </p>
-          )}
+          <Banner message={message} onDismiss={() => setMessage({ text: "", success: true })} />
             </div>
           </div>
         </div>
