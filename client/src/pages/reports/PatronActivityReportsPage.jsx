@@ -1,6 +1,5 @@
 /* eslint-disable react-refresh/only-export-components */
 import {
-  CheckboxControl,
   InputControl,
   ROLE_OPTIONS,
   ReportTable,
@@ -33,7 +32,6 @@ export const patronActivityReportPage = {
       borrowerName: "",
       itemName: "",
       minBorrows: "",
-      withUnpaidOnly: false,
     };
   },
   buildParams(params, filters) {
@@ -42,7 +40,6 @@ export const patronActivityReportPage = {
     if (filters.borrowerName.trim()) params.set("borrowerName", filters.borrowerName.trim());
     if (filters.itemName.trim()) params.set("itemName", filters.itemName.trim());
     if (filters.minBorrows !== "") params.set("minBorrows", filters.minBorrows);
-    if (filters.withUnpaidOnly) params.set("withUnpaidOnly", "true");
   },
   getExportSummary(filters) {
     return [
@@ -53,7 +50,6 @@ export const patronActivityReportPage = {
       { label: "Borrower Search", value: filters.borrowerName.trim() || "All" },
       { label: "Item Search", value: filters.itemName.trim() || "All" },
       { label: "Minimum Borrows", value: filters.minBorrows || "None" },
-      { label: "Debt Filter", value: filters.withUnpaidOnly ? "Only accounts with debt" : "All accounts" },
     ];
   },
 };
@@ -85,11 +81,6 @@ export function PatronActivityReportsFilters({ filters, onChange }) {
         min={0}
         value={filters.minBorrows}
         onChange={(value) => onChange("minBorrows", value)}
-      />
-      <CheckboxControl
-        label="Show Borrow Restricted Accounts"
-        checked={filters.withUnpaidOnly}
-        onChange={(value) => onChange("withUnpaidOnly", value)}
       />
     </>
   );
