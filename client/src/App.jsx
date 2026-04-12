@@ -20,6 +20,7 @@ import DeviceDetailPage from "./pages/DeviceDetailPage";
 import AdminPage from "./pages/AdminPage";
 import ManageStaffPage from "./pages/ManageStaffPage";
 import ReportsPage from "./pages/ReportsPage";
+import NotificationsPage from "./pages/NotificationsPage";
 
 export default function App() {
   return (
@@ -46,6 +47,7 @@ export default function App() {
       <Route path="/admin" element={<AdminPage />} />
       <Route path="/manage-staff" element={<ManageStaffPage />} />
       <Route path="/reports" element={<ReportsPage />} />
+      <Route path="/notifications" element={<NotificationsPage />} />
     </Routes>
   );
 }
