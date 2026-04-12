@@ -18,8 +18,7 @@ export default function ViewAccountPage() {
   const token = sessionStorage.getItem("token");
   
   const [fees, setFees] = useState([]);
-  const [message, setMessage] = useState("");
-  //const [notifications, setNotifications] = useState([]);
+  const [setMessage] = useState("");
 
   useEffect(() => {
     if (!token) {
