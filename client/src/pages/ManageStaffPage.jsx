@@ -375,7 +375,7 @@ export default function ManageStaffPage() {
                           type="button"
                           onClick={handleDeactivateStaff}
                           disabled={deactivateLoading}
-                          className="rounded-lg border border-red-300 bg-white px-4 py-2 text-sm font-semibold text-red-700 hover:bg-red-100 disabled:opacity-50"
+                          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
                         >
                           {deactivateLoading ? "Deactivating..." : "Yes, Deactivate"}
                         </button>
