@@ -14,7 +14,7 @@ export default function NavigationBar() {
         onClick={() => navigate(homeRoute)}
         className="text-2xl font-bold text-green-900 cursor-pointer"
       >
-        Library Database
+        ReadMore Library
       </div>
       
         {/*log out button */}

@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 import { apiFetch } from "../api";
+import Banner from "../components/Banner";
 
 const OPEN_HOUR = 8;
 const CLOSE_HOUR = 21;
@@ -22,7 +23,7 @@ export default function RentARoomPage() {
   const [reservation, setReservation] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState({ text: "", success: true });
   const [selectedDate, setSelectedDate] = useState("");
   const [selectedHour, setSelectedHour] = useState(OPEN_HOUR);
   const [length, setLength] = useState(1);
@@ -87,7 +88,7 @@ export default function RentARoomPage() {
 
   const handleReserve = async (e) => {
     e.preventDefault();
-    setMessage("");
+    setMessage({ text: "", success: true });
     setNextAvailable(null);
 
     // build ISO start_time from the chosen date + hour slot
@@ -109,7 +110,7 @@ export default function RentARoomPage() {
       });
       const data = await response.json();
       if (!response.ok) {
-        setMessage(data.error || "Failed to make reservation.");
+        setMessage({ text: data.error || "Failed to make reservation.", success: false });
         if (data.next_available) setNextAvailable(data.next_available);
         return;
       }
@@ -117,18 +118,18 @@ export default function RentARoomPage() {
       const end = new Date(data.end_time);
       const datePart = start.toLocaleDateString(undefined, { weekday: "short", month: "short", day: "numeric", year: "numeric" });
       const timePart = `${start.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })} – ${end.toLocaleTimeString(undefined, { hour: "numeric", minute: "2-digit" })}`;
-      setMessage(`Reservation confirmed! Room ${data.room_id} · ${datePart} · ${timePart}`);
+      setMessage({ text: `Reservation confirmed! Room ${data.room_id} · ${datePart} · ${timePart}`, success: true });
       setSelectedDate("");
       setSelectedHour(OPEN_HOUR);
       setLength(1);
       fetchReservations();
     } catch (err) {
-      setMessage("Unable to connect to the server.");
+      setMessage({ text: "Unable to connect to the server.", success: false });
     }
   };
 
   const handleCancel = async () => {
-    setMessage("");
+    setMessage({ text: "", success: true });
     try {
       const response = await apiFetch(`/api/reservations/${reservation.Reservation_ID}`, {
         method: "DELETE",
@@ -136,13 +137,13 @@ export default function RentARoomPage() {
       });
       const data = await response.json();
       if (!response.ok) {
-        setMessage(data.error || "Failed to cancel reservation.");
+        setMessage({ text: data.error || "Failed to cancel reservation.", success: false });
         return;
       }
-      setMessage("Reservation cancelled successfully.");
+      setMessage({ text: "Reservation cancelled successfully.", success: true });
       fetchReservations();
     } catch (err) {
-      setMessage("Unable to connect to the server.");
+      setMessage({ text: "Unable to connect to the server.", success: false });
     }
   };
 
@@ -178,13 +179,9 @@ export default function RentARoomPage() {
 
         {loading && <p className="text-gray-600">Loading...</p>}
         {error && <p className="text-red-600">{error}</p>}
-        {message && (
-          <p className={`mb-6 text-sm font-medium ${message.includes("confirmed") || message.includes("cancelled") ? "text-green-700" : "text-red-600"}`}>
-            {message}
-            {nextAvailable && (
-              <span className="block mt-1">Next available slot: {formatDatetime(nextAvailable)}</span>
-            )}
-          </p>
+        <Banner message={message} onDismiss={() => setMessage({ text: "", success: true })} />
+        {nextAvailable && (
+          <p className="mb-6 text-sm text-gray-600">Next available slot: {formatDatetime(nextAvailable)}</p>
         )}
 
         {/* active reservation */}

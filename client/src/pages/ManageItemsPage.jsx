@@ -2,6 +2,7 @@ import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 import { apiFetch } from "../api";
+import Banner from "../components/Banner";
 
 export default function ManageItemsPage() {
   const navigate = useNavigate();
@@ -58,6 +59,8 @@ export default function ManageItemsPage() {
     setCopies([]);
     setRemoveForm({ itemId: "" });
   };
+
+  const [pageMessage, setPageMessage] = useState({ text: "", success: true });
 
   const [updateSearch, setUpdateSearch] = useState("");
   const [updateSearchResults, setUpdateSearchResults] = useState([]);
@@ -117,7 +120,7 @@ export default function ManageItemsPage() {
       const data = await response.json();
       setRemoveSearchResults(Array.isArray(data) ? data : []);
     } catch {
-      alert("Error searching items.");
+      setPageMessage({ text: "Error searching items.", success: false });
     } finally {
       setSearchLoading(false);
     }
@@ -136,7 +139,7 @@ export default function ManageItemsPage() {
       const data = await response.json();
       setCopies((data.copies || []).filter((c) => c.Copy_status !== 0));
     } catch {
-      alert("Error fetching item copies.");
+      setPageMessage({ text: "Error fetching item copies.", success: false });
     }
   };
 
@@ -161,7 +164,7 @@ export default function ManageItemsPage() {
       const data = await response.json();
       setUpdateSearchResults(Array.isArray(data) ? data : []);
     } catch {
-      alert("Error searching items.");
+      setPageMessage({ text: "Error searching items.", success: false });
     } finally {
       setUpdateSearchLoading(false);
     }
@@ -207,7 +210,7 @@ export default function ManageItemsPage() {
         });
       }
     } catch {
-      alert("Error fetching item details.");
+      setPageMessage({ text: "Error fetching item details.", success: false });
     }
   };
 
@@ -238,11 +241,11 @@ export default function ManageItemsPage() {
       if (!response.ok) {
         throw new Error(data.error || data.details || data.message || "Failed to update item");
       }
-      alert("Item updated successfully.");
+      setPageMessage({ text: "Item updated successfully.", success: true });
       resetUpdateState();
     } catch (error) {
       console.error("Error updating item:", error);
-      alert(error.message || "Error updating item.");
+      setPageMessage({ text: error.message || "Error updating item.", success: false });
     }
   };
 
@@ -274,7 +277,7 @@ export default function ManageItemsPage() {
         throw new Error(data.error || data.details || data.message || "Failed to add book");
       }
 
-      alert("Book added successfully.");
+      setPageMessage({ text: "Book added successfully.", success: true });
 
       setBookForm({
         item_name: "",
@@ -288,7 +291,7 @@ export default function ManageItemsPage() {
       });
     } catch (error) {
       console.error("Error adding book:", error);
-      alert(error.message || "Error adding book.");
+      setPageMessage({ text: error.message || "Error adding book.", success: false });
     }
   };
 
@@ -319,7 +322,7 @@ export default function ManageItemsPage() {
         throw new Error(data.error || data.details || data.message || "Failed to add CD");
       }
 
-      alert("CD added successfully.");
+      setPageMessage({ text: "CD added successfully.", success: true });
 
       setCdForm({
         item_name: "",
@@ -331,7 +334,7 @@ export default function ManageItemsPage() {
       });
     } catch (error) {
       console.error("Error adding CD:", error);
-      alert(error.message || "Error adding CD.");
+      setPageMessage({ text: error.message || "Error adding CD.", success: false });
     }
   };
 
@@ -360,7 +363,7 @@ export default function ManageItemsPage() {
         throw new Error(data.error || data.details || data.message || "Failed to add device");
       }
 
-      alert("Device added successfully.");
+      setPageMessage({ text: "Device added successfully.", success: true });
 
       setDeviceForm({
         name: "",
@@ -369,7 +372,7 @@ export default function ManageItemsPage() {
       });
     } catch (error) {
       console.error("Error adding device:", error);
-      alert(error.message || "Error adding device.");
+      setPageMessage({ text: error.message || "Error adding device.", success: false });
     }
   };
 
@@ -388,11 +391,11 @@ export default function ManageItemsPage() {
         }
       }
 
-      alert(`${selectedCopyIds.length} ${selectedCopyIds.length === 1 ? "copy" : "copies"} removed successfully.`);
+      setPageMessage({ text: `${selectedCopyIds.length} ${selectedCopyIds.length === 1 ? "copy" : "copies"} removed successfully.`, success: true });
       resetRemoveState();
     } catch (error) {
       console.error("Error removing copy:", error);
-      alert(error.message || "Error removing copy.");
+      setPageMessage({ text: error.message || "Error removing copy.", success: false });
     }
   };
 
@@ -408,6 +411,8 @@ export default function ManageItemsPage() {
         >
           ← Back
         </button>
+
+        <Banner message={pageMessage} onDismiss={() => setPageMessage({ text: "", success: true })} />
 
         {/*title*/}
         <h1 className="text-3xl font-bold text-green-900 mb-2">

@@ -1,22 +1,23 @@
 import { useState } from "react";
 import NavigationBar from "../components/NavigationBar";
+import Banner from "../components/Banner";
 
 export default function HoldsPage() {
   const [holdId, setHoldId] = useState("");
   const [queueStatus, setQueueStatus] = useState("");
   const [personId, setPersonId] = useState("");
   const [copyId, setCopyId] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState({ text: "", success: true });
 
   const handleSubmit = (e) => {
     e.preventDefault();
 
     if (!holdId || !queueStatus || !personId || !copyId) {
-      setMessage("Please fill in all required fields.");
+      setMessage({ text: "Please fill in all required fields.", success: false });
       return;
     }
 
-    setMessage("Hold request recorded.");
+    setMessage({ text: "Hold request recorded.", success: true });
   };
 
   return (
@@ -96,17 +97,7 @@ export default function HoldsPage() {
               Place Hold
             </button>
 
-            {message && (
-              <p
-                className={`text-sm font-medium ${
-                  message.includes("Please")
-                    ? "text-red-700"
-                    : "text-green-700"
-                }`}
-              >
-                {message}
-              </p>
-            )}
+            <Banner message={message} onDismiss={() => setMessage({ text: "", success: true })} />
 
             <p className="text-sm text-gray-500 pt-2">
               <span className="text-red-600 font-semibold">*</span> indicates a

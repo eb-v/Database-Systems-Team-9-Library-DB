@@ -19,6 +19,39 @@ async function lookupUser(req, res) {
             }
         }
 
+        // multi-field search — returns a list to pick from
+        if (searchBy === 'firstName' || searchBy === 'lastName' || searchBy === 'all') {
+            let query, queryParams;
+            if (searchBy === 'all') {
+                query = `
+                    SELECT Person_ID, First_name, Last_name, email, username
+                    FROM Person
+                    WHERE First_name   LIKE ?
+                       OR Last_name    LIKE ?
+                       OR username     LIKE ?
+                       OR email        LIKE ?
+                       OR phone_number LIKE ?
+                       OR CAST(Person_ID AS CHAR) LIKE ?
+                    ORDER BY Last_name, First_name LIMIT 50
+                `;
+                const like = `%${value}%`;
+                queryParams = [like, like, like, like, like, like];
+            } else {
+                const column = searchBy === 'firstName' ? 'First_name' : 'Last_name';
+                query = `SELECT Person_ID, First_name, Last_name, email, username
+                         FROM Person WHERE ${column} LIKE ?
+                         ORDER BY Last_name, First_name LIMIT 50`;
+                queryParams = [`%${value}%`];
+            }
+            const [rows] = await db.query(query, queryParams);
+            if (rows.length === 0) {
+                res.writeHead(404);
+                return res.end(JSON.stringify({ error: 'No users found' }));
+            }
+            res.writeHead(200);
+            return res.end(JSON.stringify({ results: rows }));
+        }
+
         let query = '';
         let params = [value];
 
@@ -46,6 +79,13 @@ async function lookupUser(req, res) {
                 FROM Person
                 WHERE email = ?
             `;
+        } else if (searchBy === 'phone') {
+            query = `
+                SELECT Person_ID, First_name, Last_name, email, username,
+                       phone_number, account_status, borrow_status, role
+                FROM Person
+                WHERE phone_number = ?
+            `;
         } else {
             res.writeHead(400, {'Content-Type': 'application/json' });
             return res.end(JSON.stringify({ error: 'Invalid search type' }));
@@ -61,7 +101,7 @@ async function lookupUser(req, res) {
         const person = personRows[0];
 
         const [borrowRows] = await db.query(
-            `SELECT COUNT(*) AS activeBorrows
+            `SELECT COUNT(DISTINCT bi.Copy_ID) AS activeBorrows
              FROM BorrowedItem bi
              JOIN Copy cp ON bi.Copy_ID = cp.Copy_ID
              WHERE bi.Person_ID = ? AND cp.Copy_status = 2`,
@@ -173,4 +213,21 @@ async function updateUserProfile(req, res) {
     }
 }
 
-module.exports = { lookupUser, updateUserProfile };
+async function listUsers(req, res) {
+    try {
+        const [rows] = await db.query(
+            `SELECT Person_ID, First_name, Last_name, email, username
+             FROM Person
+             WHERE role = 2
+             ORDER BY Person_ID DESC
+             LIMIT 50`
+        );
+        res.writeHead(200);
+        res.end(JSON.stringify(rows));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to fetch users', details: err.message }));
+    }
+}
+
+module.exports = { lookupUser, updateUserProfile, listUsers };

@@ -3,13 +3,14 @@ import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 import ItemImage from "../components/ItemImage";
 import { apiFetch } from "../api";
+import Banner from "../components/Banner";
 
 export default function MyHoldsPage() {
   const navigate = useNavigate();
   const [holds, setHolds] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState("");
-  const [message, setMessage] = useState("");
+  const [message, setMessage] = useState({ text: "", success: true });
 
   const token = sessionStorage.getItem("token");
   const personId = sessionStorage.getItem("personId");
@@ -43,7 +44,7 @@ export default function MyHoldsPage() {
   }, []);
 
   const handleCancel = async (holdId) => {
-    setMessage("");
+    setMessage({ text: "", success: true });
     try {
       const response = await apiFetch(`/api/holds/${holdId}`, {
         method: "DELETE",
@@ -51,13 +52,13 @@ export default function MyHoldsPage() {
       });
       const data = await response.json();
       if (!response.ok) {
-        setMessage(data.error || "Failed to cancel hold.");
+        setMessage({ text: data.error || "Failed to cancel hold.", success: false });
         return;
       }
-      setMessage("Hold cancelled successfully.");
+      setMessage({ text: "Hold cancelled successfully.", success: true });
       fetchHolds();
     } catch {
-      setMessage("Unable to connect to the server.");
+      setMessage({ text: "Unable to connect to the server.", success: false });
     }
   };
 
@@ -70,6 +71,7 @@ export default function MyHoldsPage() {
   const getItemTypeLabel = (type) => {
     if (type === 1) return "Book";
     if (type === 2) return "CD";
+    if (type === 3) return "Device";
     return "Item";
   };
 
@@ -90,11 +92,7 @@ export default function MyHoldsPage() {
 
         {loading && <p className="text-gray-600">Loading...</p>}
         {error && <p className="text-red-600">{error}</p>}
-        {message && (
-          <p className={`mb-4 text-sm font-medium ${message.includes("success") ? "text-green-700" : "text-red-600"}`}>
-            {message}
-          </p>
-        )}
+        <Banner message={message} onDismiss={() => setMessage({ text: "", success: true })} />
 
         {!loading && !error && holds.length === 0 && (
           <p className="text-gray-600">You have no active holds.</p>
@@ -131,7 +129,7 @@ export default function MyHoldsPage() {
                 <div className="mt-4 flex gap-3">
                   {hold.hold_status === 2 && (
                     <button
-                      onClick={() => navigate(`/catalog/${hold.Item_ID}`)}
+                      onClick={() => navigate(hold.Item_type === 3 ? `/rent-a-device/${hold.Item_ID}` : `/catalog/${hold.Item_ID}`)}
                       className="bg-green-900 text-white px-4 py-2 rounded-xl text-sm font-semibold hover:bg-green-800"
                     >
                       Checkout Now
