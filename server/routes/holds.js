@@ -1,6 +1,11 @@
 const db = require('../db');
 
 const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const fmtRow = (r) => ({
+    ...r,
+    hold_date:   r.hold_date   ? formatDate(new Date(r.hold_date))   : null,
+    expiry_date: r.expiry_date ? formatDate(new Date(r.expiry_date)) : null,
+});
 
 async function cleanupExpiredHolds() {
     const todayStr = formatDate(new Date());
@@ -253,7 +258,7 @@ async function getHoldsForPerson(req, res) {
         );
 
         res.writeHead(200);
-        res.end(JSON.stringify(rows));
+        res.end(JSON.stringify(rows.map(fmtRow)));
     } catch (err) {
         res.writeHead(500);
         res.end(JSON.stringify({ error: 'Failed to fetch holds', details: err.message }));
@@ -277,7 +282,7 @@ async function getAllHolds(req, res) {
         );
 
         res.writeHead(200);
-        res.end(JSON.stringify(rows));
+        res.end(JSON.stringify(rows.map(fmtRow)));
     } catch (err) {
         res.writeHead(500);
         res.end(JSON.stringify({ error: 'Failed to fetch all holds', details: err.message }));

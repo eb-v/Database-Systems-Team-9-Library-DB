@@ -21,6 +21,9 @@ async function addRoom(req, res) {
 const OPEN_HOUR = 8;   // 8:00 AM
 const CLOSE_HOUR = 21; // 9:00 PM
 
+const formatDatetime = (d) => { const p = (n) => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+const fmtReservationRow = (r) => ({ ...r, start_time: r.start_time ? formatDatetime(new Date(r.start_time)) : null });
+
 // mark any reservations whose end time has passed as expired (status 2)
 async function expireReservations(personId) {
     await db.query(
@@ -222,7 +225,7 @@ async function getReservationsForPerson(req, res) {
         );
 
         res.writeHead(200);
-        res.end(JSON.stringify(rows));
+        res.end(JSON.stringify(rows.map(fmtReservationRow)));
     } catch (err) {
         res.writeHead(500);
         res.end(JSON.stringify({ error: 'Failed to fetch reservations', details: err.message }));
@@ -242,7 +245,7 @@ async function getAllReservations(req, res) {
         );
 
         res.writeHead(200);
-        res.end(JSON.stringify(rows));
+        res.end(JSON.stringify(rows.map(fmtReservationRow)));
     } catch (err) {
         res.writeHead(500);
         res.end(JSON.stringify({ error: 'Failed to fetch all reservations', details: err.message }));

@@ -2,6 +2,11 @@ const db = require('../db');
 const ITEM_FEE_POLICY = require('../config/itemFeePolicy');
 
 const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+const fmtRow = (r) => ({
+    ...r,
+    borrow_date:   r.borrow_date   ? formatDate(new Date(r.borrow_date))   : null,
+    returnBy_date: r.returnBy_date ? formatDate(new Date(r.returnBy_date)) : null,
+});
 
 async function borrowItem(req, res) {
     let body = '';
@@ -332,7 +337,7 @@ async function getBorrowedItems(req, res) {
         );
 
         res.writeHead(200);
-        res.end(JSON.stringify(rows));
+        res.end(JSON.stringify(rows.map(fmtRow)));
     } catch (err) {
         res.writeHead(500);
         res.end(JSON.stringify({ error: 'Failed to fetch borrowed items', details: err.message }));
@@ -354,7 +359,7 @@ async function getAllBorrows(req, res) {
         );
 
         res.writeHead(200);
-        res.end(JSON.stringify(rows));
+        res.end(JSON.stringify(rows.map(fmtRow)));
     } catch (err) {
         res.writeHead(500);
         res.end(JSON.stringify({ error: 'Failed to fetch borrow history', details: err.message }));
