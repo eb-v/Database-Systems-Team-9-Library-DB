@@ -96,6 +96,9 @@ export default function ManageRoomsPage() {
     }
   };
 
+  const [availableOpen, setAvailableOpen] = useState(true);
+  const [unavailableOpen, setUnavailableOpen] = useState(false);
+
   const available = rooms.filter((r) => r.Room_status === 1);
   const unavailable = rooms.filter((r) => r.Room_status !== 1);
 
@@ -157,30 +160,65 @@ export default function ManageRoomsPage() {
         ) : rooms.length === 0 ? (
           <p className="text-gray-400 italic text-sm mt-4">No rooms found. Add one to get started.</p>
         ) : (
-          <div className="space-y-6 mt-4">
-            {available.length > 0 && (
-              <section>
-                <h2 className="text-lg font-semibold text-green-900 mb-3">Available for Reservation</h2>
-                <div className="space-y-2">
-                  {available.map((room) => (
+          <div className="space-y-3 mt-4">
+            <Accordion
+              label="Available for Reservation"
+              count={available.length}
+              open={availableOpen}
+              onToggle={() => setAvailableOpen((o) => !o)}
+              color="green"
+            >
+              {available.length === 0
+                ? <p className="text-sm text-gray-400 italic">No available rooms.</p>
+                : <div className="space-y-2">{available.map((room) => (
                     <RoomRow key={room.Room_ID} room={room} onToggle={handleToggleStatus} toggling={togglingId === room.Room_ID} />
-                  ))}
-                </div>
-              </section>
-            )}
-            {unavailable.length > 0 && (
-              <section>
-                <h2 className="text-lg font-semibold text-gray-500 mb-3">Unavailable</h2>
-                <div className="space-y-2">
-                  {unavailable.map((room) => (
+                  ))}</div>
+              }
+            </Accordion>
+
+            <Accordion
+              label="Unavailable"
+              count={unavailable.length}
+              open={unavailableOpen}
+              onToggle={() => setUnavailableOpen((o) => !o)}
+              color="red"
+            >
+              {unavailable.length === 0
+                ? <p className="text-sm text-gray-400 italic">No unavailable rooms.</p>
+                : <div className="space-y-2">{unavailable.map((room) => (
                     <RoomRow key={room.Room_ID} room={room} onToggle={handleToggleStatus} toggling={togglingId === room.Room_ID} />
-                  ))}
-                </div>
-              </section>
-            )}
+                  ))}</div>
+              }
+            </Accordion>
           </div>
         )}
       </div>
+    </div>
+  );
+}
+
+function Accordion({ label, count, open, onToggle, color, children }) {
+  const headerColor = color === "green" ? "hover:bg-green-50" : "hover:bg-gray-50";
+  const badgeColor = color === "green" ? "bg-green-100 text-green-800" : color === "red" ? "bg-red-100 text-red-800" : "bg-gray-100 text-gray-600";
+  return (
+    <div className="border rounded-lg overflow-hidden">
+      <button
+        onClick={onToggle}
+        className={`w-full flex items-center justify-between px-5 py-4 text-left font-semibold text-gray-800 ${headerColor} transition-colors`}
+      >
+        <div className="flex items-center gap-3">
+          <span>{label}</span>
+          {count > 0 && (
+            <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${badgeColor}`}>{count}</span>
+          )}
+        </div>
+        <span className="text-gray-400 text-sm">{open ? "▲" : "▼"}</span>
+      </button>
+      {open && (
+        <div className="px-5 py-4 border-t">
+          {children}
+        </div>
+      )}
     </div>
   );
 }
