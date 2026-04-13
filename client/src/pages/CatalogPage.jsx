@@ -141,7 +141,7 @@ export default function CatalogPage() {
                   </p>
                 )}
                 {item.Item_type === 2 && (
-                  <p className="text-sm text-gray-500 mt-1">Rating: {item.rating}</p>
+                  <p className="text-sm text-gray-500 mt-1">Rating: {item.rating == 1 ? "G" : item.rating == 2 ? "PG" : item.rating == 3 ? "PG-13" : item.rating == 4 ? "R" : item.rating == 5 ? "X" : "—"}</p>
                 )}
               </div>
               <div className="shrink-0 text-right">
