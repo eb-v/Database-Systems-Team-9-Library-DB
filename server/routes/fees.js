@@ -77,7 +77,7 @@ async function payFee(req, res) {
             }
 
             const today = new Date();
-            const formatDate = (d) => d.toISOString().split('T')[0];
+            const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
             // step 4 — insert a FeePayment record. method 1 = cash, 2 = card
             const [result] = await db.query(

@@ -116,7 +116,7 @@ export default function MyHoldsPage() {
                       </p>
                       {hold.hold_status === 2 && hold.expiry_date && (
                         <p className="text-sm text-green-700 mt-1">
-                          Expires: {new Date(hold.expiry_date).toLocaleDateString()}
+                          Expires: {new Date(hold.expiry_date.slice(0, 10) + 'T00:00:00').toLocaleDateString()}
                         </p>
                       )}
                     </div>

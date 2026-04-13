@@ -119,7 +119,7 @@ export default function ItemDetailPage() {
               <p><span className="font-semibold">Author:</span> {item.author_firstName} {item.author_lastName}</p>
               <p><span className="font-semibold">Publisher:</span> {item.publisher || "—"}</p>
               <p><span className="font-semibold">Language:</span> {item.language == 1 ? "English" : item.language == 2 ? "Spanish" : "—"}</p>
-              <p><span className="font-semibold">Year Published:</span> {item.year_published ? new Date(item.year_published).getFullYear() : "—"}</p>
+              <p><span className="font-semibold">Year Published:</span> {item.year_published ? String(item.year_published).slice(0, 4) : "—"}</p>
               <p><span className="font-semibold">Genre:</span> {item.book_genre || "—"}</p>
             </div>
           )}
@@ -130,7 +130,7 @@ export default function ItemDetailPage() {
               <p><span className="font-semibold">Type:</span> {item.CD_type == 1 ? "DVD" : item.CD_type == 2 ? "Blu-ray" : item.CD_type == 3 ? "CD" : "—"}</p>
               <p><span className="font-semibold">Genre:</span> {item.cd_genre || "—"}</p>
               <p><span className="font-semibold">Rating:</span> {item.rating == 1 ? "G" : item.rating == 2 ? "PG" : item.rating == 3 ? "PG-13" : item.rating == 4 ? "R" : item.rating == 5 ? "X" : "—"}</p>
-              <p><span className="font-semibold">Release Date:</span> {item.release_date ? new Date(item.release_date).toLocaleDateString() : "—"}</p>
+              <p><span className="font-semibold">Release Date:</span> {item.release_date ? new Date(item.release_date.slice(0, 10) + 'T00:00:00').toLocaleDateString() : "—"}</p>
             </div>
           )}
 

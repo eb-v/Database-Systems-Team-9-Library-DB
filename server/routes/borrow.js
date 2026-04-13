@@ -1,7 +1,7 @@
 const db = require('../db');
 const ITEM_FEE_POLICY = require('../config/itemFeePolicy');
 
-const formatDate = (d) => d.toISOString().split('T')[0];
+const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
 async function borrowItem(req, res) {
     let body = '';

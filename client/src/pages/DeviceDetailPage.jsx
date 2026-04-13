@@ -52,7 +52,7 @@ export default function DeviceDetailPage() {
         setMessage({ text: data.error || "Failed to borrow device.", success: false });
         return;
       }
-      setMessage({ text: `Device checked out successfully. Return by ${new Date(data.return_by).toLocaleDateString()}.`, success: true });
+      setMessage({ text: `Device checked out successfully. Return by ${new Date(data.return_by.slice(0, 10) + 'T00:00:00').toLocaleDateString()}.`, success: true });
       fetchData();
     } catch {
       setMessage({ text: "Unable to connect to the server.", success: false });

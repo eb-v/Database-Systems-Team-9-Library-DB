@@ -59,7 +59,7 @@ export default function MyProfilePage() {
 
   const formatDate = (dateStr) => {
     if (!dateStr) return "—";
-    return new Date(dateStr).toLocaleDateString();
+    return new Date(dateStr.slice(0, 10) + 'T00:00:00').toLocaleDateString();
   };
 
   const getAccountStatus = (status) => status === 1 ? "Active" : "Disabled";

@@ -134,10 +134,10 @@ function BorrowCard({ borrow, onReturn, getItemTypeLabel, isOverdue }) {
           </p>
           <h3 className="text-lg font-bold text-gray-800">{borrow.Item_name}</h3>
           <p className="text-sm text-gray-500 mt-1">
-            Borrowed: {new Date(borrow.borrow_date).toLocaleDateString()}
+            Borrowed: {new Date(borrow.borrow_date.slice(0, 10) + 'T00:00:00').toLocaleDateString()}
           </p>
           <p className={`text-sm mt-1 ${overdue ? "text-red-600 font-semibold" : "text-gray-500"}`}>
-            Return by: {new Date(borrow.returnBy_date).toLocaleDateString()}
+            Return by: {new Date(borrow.returnBy_date.slice(0, 10) + 'T00:00:00').toLocaleDateString()}
             {overdue && " — Overdue"}
           </p>
         </div>
