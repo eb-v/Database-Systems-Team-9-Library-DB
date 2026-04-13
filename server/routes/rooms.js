@@ -355,6 +355,7 @@ async function updateRoomStatus(req, res) {
     let body = '';
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
+        const conn = await db.getConnection();
         try {
             const roomId = req.url.split('/')[3];
             const { Room_status } = JSON.parse(body);
@@ -364,16 +365,27 @@ async function updateRoomStatus(req, res) {
                 return res.end(JSON.stringify({ error: 'Room_status must be 0 (unavailable) or 1 (available)' }));
             }
 
-            const [roomRows] = await db.query(`SELECT Room_ID FROM Room WHERE Room_ID = ?`, [roomId]);
+            const [roomRows] = await conn.query(`SELECT Room_ID FROM Room WHERE Room_ID = ?`, [roomId]);
             if (roomRows.length === 0) {
                 res.writeHead(404);
                 return res.end(JSON.stringify({ error: 'Room not found' }));
             }
 
-            // if marking unavailable, cancel any active reservations for this room
+            await conn.beginTransaction();
+
             let cancelledCount = 0;
             if (Room_status === 0) {
-                const [cancelled] = await db.query(
+                // expire stale reservations first so they aren't counted as cancelled
+                await conn.query(
+                    `UPDATE RoomReservation
+                     SET reservation_status = 2
+                     WHERE Room_ID = ? AND reservation_status = 1
+                     AND DATE_ADD(start_time, INTERVAL TIME_TO_SEC(length) SECOND) <= ?`,
+                    [roomId, new Date()]
+                );
+
+                // cancel remaining genuinely active reservations
+                const [cancelled] = await conn.query(
                     `UPDATE RoomReservation SET reservation_status = 0
                      WHERE Room_ID = ? AND reservation_status = 1`,
                     [roomId]
@@ -381,7 +393,9 @@ async function updateRoomStatus(req, res) {
                 cancelledCount = cancelled.affectedRows;
             }
 
-            await db.query(`UPDATE Room SET Room_status = ? WHERE Room_ID = ?`, [Room_status, roomId]);
+            await conn.query(`UPDATE Room SET Room_status = ? WHERE Room_ID = ?`, [Room_status, roomId]);
+
+            await conn.commit();
 
             const message = Room_status === 0 && cancelledCount > 0
                 ? `Room marked unavailable. ${cancelledCount} active reservation(s) were automatically cancelled.`
@@ -390,8 +404,11 @@ async function updateRoomStatus(req, res) {
             res.writeHead(200);
             res.end(JSON.stringify({ message }));
         } catch (err) {
+            await conn.rollback();
             res.writeHead(500);
             res.end(JSON.stringify({ error: 'Failed to update room status', details: err.message }));
+        } finally {
+            conn.release();
         }
     });
 }

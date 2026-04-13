@@ -14,7 +14,9 @@ export default function ManageRoomsPage() {
   const [loading, setLoading] = useState(true);
   const [message, setMessage] = useState({ text: "", success: true });
   const [addingRoom, setAddingRoom] = useState(false);
+  const [addCooldown, setAddCooldown] = useState(false);
   const [togglingId, setTogglingId] = useState(null);
+  const [confirmRoom, setConfirmRoom] = useState(null); // room pending unavailable confirmation
 
   useEffect(() => {
     if (!isStaff && !isAdmin) { navigate("/login"); return; }
@@ -37,6 +39,7 @@ export default function ManageRoomsPage() {
 
   const handleAddRoom = async () => {
     setAddingRoom(true);
+    setAddCooldown(true);
     setMessage({ text: "", success: true });
     try {
       const r = await apiFetch("/api/rooms", {
@@ -54,13 +57,23 @@ export default function ManageRoomsPage() {
       setMessage({ text: "Unable to connect to the server.", success: false });
     } finally {
       setAddingRoom(false);
+      setTimeout(() => setAddCooldown(false), 2000);
     }
   };
 
   const handleToggleStatus = async (room) => {
+    // marking unavailable is destructive — require confirmation first
+    if (room.Room_status === 1) {
+      setConfirmRoom(room);
+      return;
+    }
+    await applyToggle(room, 1);
+  };
+
+  const applyToggle = async (room, newStatus) => {
+    setConfirmRoom(null);
     setTogglingId(room.Room_ID);
     setMessage({ text: "", success: true });
-    const newStatus = room.Room_status === 1 ? 0 : 1;
     try {
       const r = await apiFetch(`/api/rooms/${room.Room_ID}`, {
         method: "PATCH",
@@ -102,7 +115,7 @@ export default function ManageRoomsPage() {
           <h1 className="text-3xl font-bold text-green-900">Manage Rooms</h1>
           <button
             onClick={handleAddRoom}
-            disabled={addingRoom}
+            disabled={addingRoom || addCooldown}
             className="bg-green-900 text-white px-5 py-2 rounded-lg font-semibold hover:bg-green-800 disabled:opacity-50"
           >
             {addingRoom ? "Adding..." : "+ Add Room"}
@@ -111,6 +124,33 @@ export default function ManageRoomsPage() {
         <p className="text-gray-600 mb-6">Add rooms and control which ones are available for reservation.</p>
 
         <Banner message={message} onDismiss={() => setMessage({ text: "", success: true })} />
+
+        {confirmRoom && (
+          <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4 mb-4">
+            <p className="text-sm font-semibold text-red-700">
+              Mark Room {confirmRoom.Room_ID} as unavailable?
+            </p>
+            <p className="mt-1 text-sm text-red-600">
+              Any active reservations for this room will be automatically cancelled.
+            </p>
+            <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+              <button
+                type="button"
+                onClick={() => setConfirmRoom(null)}
+                className="rounded-lg bg-green-900 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800"
+              >
+                No, Keep Available
+              </button>
+              <button
+                type="button"
+                onClick={() => applyToggle(confirmRoom, 0)}
+                className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700"
+              >
+                Yes, Mark Unavailable
+              </button>
+            </div>
+          </div>
+        )}
 
         {loading ? (
           <p className="text-gray-400 italic text-sm mt-4">Loading rooms...</p>
