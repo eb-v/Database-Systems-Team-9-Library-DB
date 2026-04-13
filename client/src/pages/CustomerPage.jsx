@@ -117,7 +117,7 @@ export default function CustomerPage() {
 
       {/* Featured Items */}
       <section className="max-w-6xl mx-auto px-6 py-10 pb-0">
-        <h2 className="text-2xl font-bold text-green-900 mb-1">Featured Items</h2>
+        <h2 className="text-2xl font-bold text-green-900 mb-1">Featured Books</h2>
         <p className="text-sm text-gray-500 mb-6">Handpicked titles available in our collection.</p>
 
         {featuredLoading ? (
@@ -125,11 +125,9 @@ export default function CustomerPage() {
         ) : (
           <div className="space-y-8">
 
-            {/* Top Books */}
             {featuredBooks.length > 0 && (
               <div>
-                <h3 className="text-sm font-semibold uppercase tracking-widest text-gray-400 mb-3">Top Books</h3>
-                <div className="flex gap-4">
+                <div className="grid grid-cols-3 gap-4">
                   {featuredBooks.map((item) => (
                     <FeaturedCard key={item.Item_ID} item={item} navigate={navigate} />
                   ))}
@@ -187,38 +185,39 @@ function FeaturedCard({ item, navigate }) {
   return (
     <div
       onClick={() => navigate(`/catalog/${item.Item_ID}`)}
-      className="cursor-pointer group flex flex-col bg-white rounded-2xl shadow-sm border border-gray-200 overflow-hidden hover:shadow-lg transition w-[160px] shrink-0"
+      className="cursor-pointer group flex-1 bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-green-300 transition overflow-hidden flex flex-col"
     >
-      {/* Poster image */}
-      <div className="w-full aspect-[2/3] bg-gray-100 overflow-hidden">
+      {/* Green accent bar */}
+      <div className="h-1.5 bg-green-700 w-full" />
+
+      <div className="p-4 flex gap-3 flex-1">
         <ItemImage
           itemId={item.Item_ID}
           itemName={item.Item_name}
-          className="w-full h-full"
-          imageClassName="w-full h-full object-cover"
+          className="h-28 w-20 shrink-0"
+          imageClassName="h-full w-full object-cover"
         />
-      </div>
+        <div className="flex flex-col gap-2 flex-1 min-w-0">
+          <div>
+            <p className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 group-hover:text-green-800 transition">
+              {item.Item_name}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5 truncate">
+              {item.author_firstName} {item.author_lastName}
+            </p>
+          </div>
 
-      {/* Info section */}
-      <div className="p-4 flex flex-col gap-2">
-        <div>
-          <p className="font-bold text-gray-900 text-base leading-snug line-clamp-2">
-            {item.Item_name}
-          </p>
-          <p className="text-sm text-green-700 mt-0.5 truncate">
-            {item.author_firstName} {item.author_lastName}
-          </p>
+          {item.book_genre && (
+            <span className="self-start bg-green-50 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-green-200">
+              {item.book_genre}
+            </span>
+          )}
+
+          <div className="mt-auto flex items-center gap-1.5">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${available > 0 ? "bg-green-500" : "bg-gray-300"}`} />
+            <span className="text-xs text-gray-500">{available} of {total} available</span>
+          </div>
         </div>
-
-        {item.book_genre && (
-          <span className="self-start bg-purple-100 text-purple-700 text-xs font-semibold px-3 py-1 rounded-full">
-            {item.book_genre}
-          </span>
-        )}
-
-        <p className="text-sm text-gray-500">
-          {available} / {total} available
-        </p>
       </div>
     </div>
   );
