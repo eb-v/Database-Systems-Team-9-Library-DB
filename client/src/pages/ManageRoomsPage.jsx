@@ -109,13 +109,13 @@ export default function ManageRoomsPage() {
       <div className="max-w-3xl mx-auto px-6 py-10">
         <button
           onClick={() => navigate(isAdmin ? "/admin" : "/staff")}
-          className="text-sm text-green-900 font-semibold hover:underline mb-6 inline-block"
+          className=" text-sm text-green-900 font-semibold hover:underline mb-6 inline-block"
         >
           ← Back
         </button>
 
-        <div className="flex items-center justify-between mb-2">
-          <h1 className="text-3xl font-bold text-green-900">Manage Rooms</h1>
+        <div className=" flex items-center justify-between mb-2">
+          <h1 className=" text-3xl font-bold text-green-900">Manage Rooms</h1>
           <button
             onClick={handleAddRoom}
             disabled={addingRoom || addCooldown}
@@ -160,7 +160,7 @@ export default function ManageRoomsPage() {
         ) : rooms.length === 0 ? (
           <p className="text-gray-400 italic text-sm mt-4">No rooms found. Add one to get started.</p>
         ) : (
-          <div className="space-y-3 mt-4">
+          <div className=" bg-white rounded-xl justify-between shadow-sm space-y-3 mt-4">
             <Accordion
               label="Available for Reservation"
               count={available.length}
@@ -185,7 +185,7 @@ export default function ManageRoomsPage() {
             >
               {unavailable.length === 0
                 ? <p className="text-sm text-gray-400 italic">No unavailable rooms.</p>
-                : <div className="space-y-2">{unavailable.map((room) => (
+                : <div className="space-y-3">{unavailable.map((room) => (
                     <RoomRow key={room.Room_ID} room={room} onToggle={handleToggleStatus} toggling={togglingId === room.Room_ID} />
                   ))}</div>
               }
@@ -201,7 +201,7 @@ function Accordion({ label, count, open, onToggle, color, children }) {
   const headerColor = color === "green" ? "hover:bg-green-50" : "hover:bg-gray-50";
   const badgeColor = color === "green" ? "bg-green-100 text-green-800" : color === "red" ? "bg-red-100 text-red-800" : "bg-gray-100 text-gray-600";
   return (
-    <div className="border rounded-lg overflow-hidden">
+    <div className="bg-white rounded-2xl shadow-sm overflow-hidden">
       <button
         onClick={onToggle}
         className={`w-full flex items-center justify-between px-5 py-4 text-left font-semibold text-gray-800 ${headerColor} transition-colors`}
@@ -215,7 +215,7 @@ function Accordion({ label, count, open, onToggle, color, children }) {
         <span className="text-gray-400 text-sm">{open ? "▲" : "▼"}</span>
       </button>
       {open && (
-        <div className="px-5 py-4 border-t">
+        <div className="px-5 py-4 bg-white">
           {children}
         </div>
       )}
@@ -226,7 +226,7 @@ function Accordion({ label, count, open, onToggle, color, children }) {
 function RoomRow({ room, onToggle, toggling }) {
   const isAvailable = room.Room_status === 1;
   return (
-    <div className="bg-white rounded-xl shadow-sm border px-5 py-4 flex items-center justify-between">
+    <div className="bg-white rounded-2xl shadow-sm px-5 py-4 flex items-center justify-between">
       <div>
         <p className="font-semibold text-gray-800">Room {room.Room_ID}</p>
         <span
@@ -242,8 +242,8 @@ function RoomRow({ room, onToggle, toggling }) {
         disabled={toggling}
         className={`px-4 py-2 rounded-lg text-sm font-semibold disabled:opacity-50 transition ${
           isAvailable
-            ? "bg-red-600 text-white hover:bg-red-700"
-            : "bg-green-900 text-white hover:bg-green-800"
+            ? "bg-red-600 text-white hover:bg-red-600"
+            : "bg-green-800 text-white hover:bg-green-800"
         }`}
       >
         {toggling ? "Saving..." : isAvailable ? "Mark Unavailable" : "Mark Available"}
