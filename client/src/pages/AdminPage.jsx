@@ -10,6 +10,7 @@ import holdIcon from "../assets/hold.png";
 import itemIcon from "../assets/item.png";
 import roomIcon from "../assets/room.png";
 import manageRoomIcon from "../assets/manageroom.png";
+import searchPeopleIcon from "../assets/searchpeople.png";
 import deviceIcon from "../assets/device.png";
 import staffIcon from "../assets/staff.png";
 import reportIcon from "../assets/report.png";
@@ -63,7 +64,7 @@ const adminToolCards = [
   {
     title: "User Lookup",
     description: "Search for a patron's profile.",
-    icon: userIcon,
+    icon: searchPeopleIcon,
     path: "/user-lookup",
   },
   {
