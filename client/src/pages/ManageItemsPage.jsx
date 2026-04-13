@@ -104,6 +104,15 @@ export default function ManageItemsPage() {
     }));
   };
 
+  const [coverImage, setCoverImage] = useState(null);
+  const handleImageChange = (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => setCoverImage(reader.result);
+    reader.readAsDataURL(file);
+  };
+
   const handleRemoveSearch = async () => {
     if (!removeSearch.trim()) return;
     setSearchLoading(true);
@@ -609,7 +618,9 @@ export default function ManageItemsPage() {
                 />
               </div>
 
-              <button 
+              <CoverImageInput coverImage={coverImage} onChange={handleImageChange} onClear={() => setCoverImage(null)} />
+
+              <button
                 type = "submit"
                 className="bg-green-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-900"
               >
@@ -747,7 +758,9 @@ export default function ManageItemsPage() {
                 />
               </div>
 
-              <button 
+              <CoverImageInput coverImage={coverImage} onChange={handleImageChange} onClear={() => setCoverImage(null)} />
+
+              <button
                 type="submit"
                 className="bg-green-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-900"
               >
@@ -823,6 +836,8 @@ export default function ManageItemsPage() {
                   required
                 />
               </div>
+
+              <CoverImageInput coverImage={coverImage} onChange={handleImageChange} onClear={() => setCoverImage(null)} />
 
               <button
                 type="submit"
@@ -974,6 +989,7 @@ export default function ManageItemsPage() {
                       <option value="Children">Children</option>
                     </select>
                   </div>
+                  <CoverImageInput coverImage={coverImage} onChange={handleImageChange} onClear={() => setCoverImage(null)} />
                   <button type="submit"
                     className="bg-green-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-900">
                     Save Changes
@@ -1037,6 +1053,7 @@ export default function ManageItemsPage() {
                     <input type="date" name="release_date" value={updateForm.release_date || ""} onChange={handleUpdateChange}
                       className="w-full border border-gray-300 rounded-lg px-4 py-3" required />
                   </div>
+                  <CoverImageInput coverImage={coverImage} onChange={handleImageChange} onClear={() => setCoverImage(null)} />
                   <button type="submit"
                     className="bg-green-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-900">
                     Save Changes
@@ -1066,6 +1083,7 @@ export default function ManageItemsPage() {
                       <option value="3">Laptop</option>
                     </select>
                   </div>
+                  <CoverImageInput coverImage={coverImage} onChange={handleImageChange} onClear={() => setCoverImage(null)} />
                   <button type="submit"
                     className="bg-green-800 text-white px-6 py-3 rounded-lg font-semibold hover:bg-green-900">
                     Save Changes
@@ -1228,6 +1246,47 @@ export default function ManageItemsPage() {
           </p>
         </div>
       </div>
+    </div>
+  );
+}
+
+function CoverImageInput({ coverImage, onChange, onClear }) {
+  return (
+    <div className="rounded-xl border border-dashed border-gray-300 bg-gray-50 p-4">
+      <p className="text-sm font-semibold text-gray-700 mb-3">
+        Cover Image <span className="text-gray-400 font-normal">(optional)</span>
+      </p>
+      {coverImage ? (
+        <div className="flex items-start gap-4">
+          <img
+            src={coverImage}
+            alt="Cover preview"
+            className="h-28 w-24 object-contain rounded-lg border border-gray-200 bg-white p-1 shadow-sm"
+          />
+          <div className="flex flex-col gap-2 justify-center">
+            <label className="cursor-pointer inline-flex items-center gap-2 bg-white border border-gray-300 rounded-lg px-3 py-2 text-sm font-semibold text-gray-700 hover:bg-gray-100 transition">
+              <span>Change image</span>
+              <input type="file" accept="image/*" onChange={onChange} className="hidden" />
+            </label>
+            <button
+              type="button"
+              onClick={onClear}
+              className="text-sm text-red-600 hover:underline text-left"
+            >
+              Remove
+            </button>
+          </div>
+        </div>
+      ) : (
+        <label className="cursor-pointer flex flex-col items-center justify-center gap-2 py-6 rounded-lg border border-dashed border-gray-300 bg-white hover:bg-green-50 hover:border-green-400 transition text-gray-400 hover:text-green-700">
+          <svg xmlns="http://www.w3.org/2000/svg" className="h-8 w-8" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+            <path strokeLinecap="round" strokeLinejoin="round" d="M3 16.5V19a1 1 0 001 1h16a1 1 0 001-1v-2.5M16 9l-4-4m0 0L8 9m4-4v12" />
+          </svg>
+          <span className="text-sm font-semibold">Click to upload cover image</span>
+          <span className="text-xs">PNG, JPG, WEBP supported</span>
+          <input type="file" accept="image/*" onChange={onChange} className="hidden" />
+        </label>
+      )}
     </div>
   );
 }

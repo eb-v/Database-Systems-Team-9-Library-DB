@@ -117,16 +117,27 @@ export default function ItemDetailPage() {
           {item.Item_type === 1 && (
             <div className="text-sm text-gray-600 space-y-1 mt-4">
               <p><span className="font-semibold">Author:</span> {item.author_firstName} {item.author_lastName}</p>
-              <p><span className="font-semibold">Publisher:</span> {item.publisher}</p>
+              <p><span className="font-semibold">Publisher:</span> {item.publisher || "—"}</p>
+              <p><span className="font-semibold">Language:</span> {item.language == 1 ? "English" : item.language == 2 ? "Spanish" : "—"}</p>
               <p><span className="font-semibold">Year Published:</span> {item.year_published ? new Date(item.year_published).getFullYear() : "—"}</p>
+              <p><span className="font-semibold">Genre:</span> {item.book_genre || "—"}</p>
             </div>
           )}
 
           {/* cd details */}
           {item.Item_type === 2 && (
             <div className="text-sm text-gray-600 space-y-1 mt-4">
-              <p><span className="font-semibold">Rating:</span> {item.rating}</p>
+              <p><span className="font-semibold">Type:</span> {item.CD_type == 1 ? "DVD" : item.CD_type == 2 ? "Blu-ray" : item.CD_type == 3 ? "CD" : "—"}</p>
+              <p><span className="font-semibold">Genre:</span> {item.cd_genre || "—"}</p>
+              <p><span className="font-semibold">Rating:</span> {item.rating == 1 ? "G" : item.rating == 2 ? "PG" : item.rating == 3 ? "PG-13" : item.rating == 4 ? "R" : item.rating == 5 ? "X" : "—"}</p>
               <p><span className="font-semibold">Release Date:</span> {item.release_date ? new Date(item.release_date).toLocaleDateString() : "—"}</p>
+            </div>
+          )}
+
+          {/* device details */}
+          {item.Item_type === 3 && (
+            <div className="text-sm text-gray-600 space-y-1 mt-4">
+              <p><span className="font-semibold">Device Type:</span> {item.Device_type == 1 ? "Computer" : item.Device_type == 2 ? "Tablet" : item.Device_type == 3 ? "Laptop" : "—"}</p>
             </div>
           )}
 

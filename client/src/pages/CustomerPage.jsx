@@ -1,11 +1,13 @@
 import NavigationBar from "../components/NavigationBar";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
 import bannerImg from "../assets/banner.png";
 import userIcon from "../assets/user.png";
 import roomIcon from "../assets/room.png";
 import deviceIcon from "../assets/device.png";
 import { getSessionRoleState } from "../auth";
+import { apiFetch } from "../api";
+import ItemImage from "../components/ItemImage";
 
 export default function CustomerPage() {
   const navigate = useNavigate();
@@ -13,6 +15,22 @@ export default function CustomerPage() {
 
   const [category, setCategory] = useState("All");
   const [query, setQuery] = useState("");
+  const [featuredBooks, setFeaturedBooks] = useState([]);
+  const [featuredLoading, setFeaturedLoading] = useState(true);
+
+  useEffect(() => {
+    const token = sessionStorage.getItem("token");
+    apiFetch("/api/items?type=1", { headers: { Authorization: `Bearer ${token}` } })
+      .then((r) => r.json())
+      .then((books) => {
+        const sortedBooks = [...(Array.isArray(books) ? books : [])]
+          .sort((a, b) => b.available_copies - a.available_copies)
+          .slice(0, 3);
+        setFeaturedBooks(sortedBooks);
+      })
+      .catch(() => {})
+      .finally(() => setFeaturedLoading(false));
+  }, []);
 
   const handleSearch = () => {
     const params = new URLSearchParams();
@@ -97,6 +115,30 @@ export default function CustomerPage() {
         </div>
       </section>
 
+      {/* Featured Items */}
+      <section className="max-w-6xl mx-auto px-6 py-10 pb-0">
+        <h2 className="text-2xl font-bold text-green-900 mb-1">Featured Books</h2>
+        <p className="text-sm text-gray-500 mb-6">Handpicked titles available in our collection.</p>
+
+        {featuredLoading ? (
+          <p className="text-sm text-gray-400 italic">Loading featured items...</p>
+        ) : (
+          <div className="space-y-8">
+
+            {featuredBooks.length > 0 && (
+              <div>
+                <div className="grid grid-cols-3 gap-4">
+                  {featuredBooks.map((item) => (
+                    <FeaturedCard key={item.Item_ID} item={item} navigate={navigate} />
+                  ))}
+                </div>
+              </div>
+            )}
+
+          </div>
+        )}
+      </section>
+
       {/*main grid*/}
       <section className="max-w-6xl mx-auto px-6 py-10">
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -131,6 +173,52 @@ export default function CustomerPage() {
           ))}
         </div>
       </section>
+
+    </div>
+  );
+}
+
+function FeaturedCard({ item, navigate }) {
+  const available = Number(item.available_copies);
+  const total = Number(item.total_copies);
+
+  return (
+    <div
+      onClick={() => navigate(`/catalog/${item.Item_ID}`)}
+      className="cursor-pointer group flex-1 bg-white rounded-xl shadow-sm border border-gray-200 hover:shadow-md hover:border-green-300 transition overflow-hidden flex flex-col"
+    >
+      {/* Green accent bar */}
+      <div className="h-1.5 bg-green-700 w-full" />
+
+      <div className="p-4 flex gap-3 flex-1">
+        <ItemImage
+          itemId={item.Item_ID}
+          itemName={item.Item_name}
+          className="h-28 w-20 shrink-0"
+          imageClassName="h-full w-full object-cover"
+        />
+        <div className="flex flex-col gap-2 flex-1 min-w-0">
+          <div>
+            <p className="font-bold text-gray-900 text-sm leading-snug line-clamp-2 group-hover:text-green-800 transition">
+              {item.Item_name}
+            </p>
+            <p className="text-xs text-gray-500 mt-0.5 truncate">
+              {item.author_firstName} {item.author_lastName}
+            </p>
+          </div>
+
+          {item.book_genre && (
+            <span className="self-start bg-green-50 text-green-800 text-xs font-semibold px-2.5 py-0.5 rounded-full border border-green-200">
+              {item.book_genre}
+            </span>
+          )}
+
+          <div className="mt-auto flex items-center gap-1.5">
+            <span className={`w-2 h-2 rounded-full shrink-0 ${available > 0 ? "bg-green-500" : "bg-gray-300"}`} />
+            <span className="text-xs text-gray-500">{available} of {total} available</span>
+          </div>
+        </div>
+      </div>
     </div>
   );
 }
