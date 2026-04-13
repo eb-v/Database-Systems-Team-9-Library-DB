@@ -1,5 +1,15 @@
 const db = require('../db');
 
+const fmtDate = (d) => { const x = new Date(d); return `${x.getFullYear()}-${String(x.getMonth()+1).padStart(2,'0')}-${String(x.getDate()).padStart(2,'0')}`; };
+const fmtDatetime = (d) => { const x = new Date(d); const p = (n) => String(n).padStart(2,'0'); return `${x.getFullYear()}-${p(x.getMonth()+1)}-${p(x.getDate())} ${p(x.getHours())}:${p(x.getMinutes())}:${p(x.getSeconds())}`; };
+const fmtFeeRow = (r) => ({
+    ...r,
+    date_owed:     r.date_owed     ? fmtDatetime(r.date_owed)    : null,
+    borrow_date:   r.borrow_date   ? fmtDate(r.borrow_date)      : null,
+    returnBy_date: r.returnBy_date ? fmtDate(r.returnBy_date)    : null,
+    Payment_Date:  r.Payment_Date  ? fmtDate(r.Payment_Date)     : null,
+});
+
 async function getFees(req, res) {
     try {
         // extract person ID from URL — e.g. /api/fees/3
@@ -34,7 +44,7 @@ async function getFees(req, res) {
         );
 
         res.writeHead(200);
-        res.end(JSON.stringify(rows));
+        res.end(JSON.stringify(rows.map(fmtFeeRow)));
     } catch (err) {
         res.writeHead(500);
         res.end(JSON.stringify({ error: 'Failed to fetch fees', details: err.message }));
@@ -77,7 +87,7 @@ async function payFee(req, res) {
             }
 
             const today = new Date();
-            const formatDate = (d) => d.toISOString().split('T')[0];
+            const formatDate = (d) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
 
             // step 4 — insert a FeePayment record. method 1 = cash, 2 = card
             const [result] = await db.query(
@@ -116,7 +126,7 @@ async function getAllFees(req, res) {
         );
 
         res.writeHead(200);
-        res.end(JSON.stringify(rows));
+        res.end(JSON.stringify(rows.map(fmtFeeRow)));
     } catch (err) {
         res.writeHead(500);
         res.end(JSON.stringify({ error: 'Failed to fetch fees', details: err.message }));
@@ -142,7 +152,7 @@ async function getAllPayments(req, res) {
         );
 
         res.writeHead(200);
-        res.end(JSON.stringify(rows));
+        res.end(JSON.stringify(rows.map(fmtFeeRow)));
     } catch (err) {
         res.writeHead(500);
         res.end(JSON.stringify({ error: 'Failed to fetch payments', details: err.message }));

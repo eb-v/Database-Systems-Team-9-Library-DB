@@ -2,6 +2,21 @@
 import { useEffect, useRef, useState } from "react";
 
 export const CURRENT_YEAR = new Date().getFullYear();
+const ITEM_TYPE_LABELS = {
+  1: "Book",
+  2: "CD",
+  3: "Device",
+};
+const CD_TYPE_LABELS = {
+  1: "DVD",
+  2: "Blu ray",
+  3: "CD",
+};
+const DEVICE_TYPE_LABELS = {
+  1: "Computer",
+  2: "Tablet",
+  3: "Laptop",
+};
 
 export const PERIOD_TYPE_OPTIONS = [
   { label: "Custom Date", value: "custom" },
@@ -51,8 +66,29 @@ export const ITEM_TYPE_OPTIONS = [
   { label: "Devices", value: "3" },
 ];
 
-export const DEFAULT_PERIOD_TYPE = "quarter";
+export const FEE_TYPE_OPTIONS = [
+  { label: "All", value: "All" },
+  { label: "Late", value: "1" },
+  { label: "Damage", value: "2" },
+  { label: "Loss", value: "3" },
+];
+
+export const FEE_STATUS_OPTIONS = [
+  { label: "All", value: "All" },
+  { label: "Paid", value: "2" },
+  { label: "Unpaid", value: "1" },
+];
+
+export const DEFAULT_PERIOD_TYPE = "all";
 const FIELD_CLASS_NAME = "w-full rounded border border-gray-300 bg-white px-3 py-2";
+
+function getMappedLabel(map, value, fallback = "") {
+  return map[Number(value)] ?? fallback;
+}
+
+function joinIdentityParts(...parts) {
+  return parts.filter(Boolean).join(" | ");
+}
 
 export function getDefaultPeriodValue(periodType) {
   if (periodType === "month") {
@@ -750,6 +786,10 @@ function getRowKey(reportType, row, index) {
     return row.Item_ID ?? index;
   }
 
+  if (reportType === "revenue") {
+    return `revenue-${row.Fine_ID ?? index}`;
+  }
+
   if (reportType === "fees") {
     return `fee-${row.Person_ID ?? index}`;
   }
@@ -782,17 +822,34 @@ function getTableWidth(columns) {
 }
 
 function getPopularityIdentityDetails(item) {
-  const authorName =
-    [item.author_firstName, item.author_lastName].filter(Boolean).join(" ") || "N/A";
+  const itemType = Number(item.Item_type);
 
-  return [formatItemType(item.Item_type), item.genre || "N/A", authorName].join(" | ");
+  if (itemType === 1) {
+    const authorName = [item.author_firstName, item.author_lastName].filter(Boolean).join(" ");
+    return joinIdentityParts(formatItemType(item.Item_type), item.genre, authorName);
+  }
+
+  if (itemType === 2) {
+    return joinIdentityParts(formatItemType(item.Item_type), formatCdType(item.CD_type));
+  }
+
+  if (itemType === 3) {
+    return joinIdentityParts(formatItemType(item.Item_type), formatDeviceType(item.Device_type));
+  }
+
+  return formatItemType(item.Item_type);
 }
 
 export function formatItemType(type) {
-  if (Number(type) === 1) return "Book";
-  if (Number(type) === 2) return "CD";
-  if (Number(type) === 3) return "Device";
-  return "Item";
+  return getMappedLabel(ITEM_TYPE_LABELS, type, "Item");
+}
+
+function formatCdType(type) {
+  return getMappedLabel(CD_TYPE_LABELS, type);
+}
+
+function formatDeviceType(type) {
+  return getMappedLabel(DEVICE_TYPE_LABELS, type);
 }
 
 export function formatRole(role) {
@@ -805,6 +862,15 @@ export function formatAccountStatus(status) {
 
 export function formatBorrowStatus(status) {
   return Number(status) === 1 ? "Good Standing" : "Restricted";
+}
+
+export function formatFeeType(type) {
+  const labels = { 1: "Late", 2: "Damage", 3: "Loss" };
+  return labels[Number(type)] ?? "Unknown";
+}
+
+export function formatFeeStatus(status) {
+  return Number(status) === 2 ? "Paid" : "Unpaid";
 }
 
 export function formatNumber(value) {

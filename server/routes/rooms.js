@@ -21,6 +21,9 @@ async function addRoom(req, res) {
 const OPEN_HOUR = 8;   // 8:00 AM
 const CLOSE_HOUR = 21; // 9:00 PM
 
+const formatDatetime = (d) => { const p = (n) => String(n).padStart(2,'0'); return `${d.getFullYear()}-${p(d.getMonth()+1)}-${p(d.getDate())} ${p(d.getHours())}:${p(d.getMinutes())}:${p(d.getSeconds())}`; };
+const fmtReservationRow = (r) => ({ ...r, start_time: r.start_time ? formatDatetime(new Date(r.start_time)) : null });
+
 // mark any reservations whose end time has passed as expired (status 2)
 async function expireReservations(personId) {
     await db.query(
@@ -222,7 +225,7 @@ async function getReservationsForPerson(req, res) {
         );
 
         res.writeHead(200);
-        res.end(JSON.stringify(rows));
+        res.end(JSON.stringify(rows.map(fmtReservationRow)));
     } catch (err) {
         res.writeHead(500);
         res.end(JSON.stringify({ error: 'Failed to fetch reservations', details: err.message }));
@@ -242,7 +245,7 @@ async function getAllReservations(req, res) {
         );
 
         res.writeHead(200);
-        res.end(JSON.stringify(rows));
+        res.end(JSON.stringify(rows.map(fmtReservationRow)));
     } catch (err) {
         res.writeHead(500);
         res.end(JSON.stringify({ error: 'Failed to fetch all reservations', details: err.message }));
@@ -340,4 +343,77 @@ async function getAvailableSlots(req, res) {
     }
 }
 
-module.exports = { addRoom, makeReservation, getReservationsForPerson, getAllReservations, cancelReservation, getAvailableSlots };
+async function getRooms(req, res) {
+    try {
+        const [rows] = await db.query(`SELECT Room_ID, Room_status FROM Room ORDER BY Room_ID ASC`);
+        res.writeHead(200);
+        res.end(JSON.stringify(rows));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to fetch rooms', details: err.message }));
+    }
+}
+
+async function updateRoomStatus(req, res) {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+        const conn = await db.getConnection();
+        try {
+            const roomId = req.url.split('/')[3];
+            const { Room_status } = JSON.parse(body);
+
+            if (Room_status !== 0 && Room_status !== 1) {
+                res.writeHead(400);
+                return res.end(JSON.stringify({ error: 'Room_status must be 0 (unavailable) or 1 (available)' }));
+            }
+
+            const [roomRows] = await conn.query(`SELECT Room_ID FROM Room WHERE Room_ID = ?`, [roomId]);
+            if (roomRows.length === 0) {
+                res.writeHead(404);
+                return res.end(JSON.stringify({ error: 'Room not found' }));
+            }
+
+            await conn.beginTransaction();
+
+            let cancelledCount = 0;
+            if (Room_status === 0) {
+                // expire stale reservations first so they aren't counted as cancelled
+                await conn.query(
+                    `UPDATE RoomReservation
+                     SET reservation_status = 2
+                     WHERE Room_ID = ? AND reservation_status = 1
+                     AND DATE_ADD(start_time, INTERVAL TIME_TO_SEC(length) SECOND) <= ?`,
+                    [roomId, new Date()]
+                );
+
+                // cancel remaining genuinely active reservations
+                const [cancelled] = await conn.query(
+                    `UPDATE RoomReservation SET reservation_status = 0
+                     WHERE Room_ID = ? AND reservation_status = 1`,
+                    [roomId]
+                );
+                cancelledCount = cancelled.affectedRows;
+            }
+
+            await conn.query(`UPDATE Room SET Room_status = ? WHERE Room_ID = ?`, [Room_status, roomId]);
+
+            await conn.commit();
+
+            const message = Room_status === 0 && cancelledCount > 0
+                ? `Room marked unavailable. ${cancelledCount} active reservation(s) were automatically cancelled.`
+                : 'Room status updated successfully.';
+
+            res.writeHead(200);
+            res.end(JSON.stringify({ message }));
+        } catch (err) {
+            await conn.rollback();
+            res.writeHead(500);
+            res.end(JSON.stringify({ error: 'Failed to update room status', details: err.message }));
+        } finally {
+            conn.release();
+        }
+    });
+}
+
+module.exports = { addRoom, getRooms, updateRoomStatus, makeReservation, getReservationsForPerson, getAllReservations, cancelReservation, getAvailableSlots };

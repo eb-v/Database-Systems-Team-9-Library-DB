@@ -17,7 +17,7 @@ const { verifyToken, requireRole, requireAdmin } = require('./middleware/auth');
 const server = http.createServer((req, res) => {
     // allow requests from any origin (needed for React frontend on a different port)
     res.setHeader('Access-Control-Allow-Origin', '*');
-    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+    res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, PATCH, DELETE, OPTIONS');
     res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
     res.setHeader('Content-Type', 'application/json');
 
@@ -237,6 +237,22 @@ const server = http.createServer((req, res) => {
             });
         });
 
+    // staff-only — list all rooms
+    } else if (req.method === 'GET' && req.url === '/api/rooms') {
+        verifyToken(req, res, () => {
+            requireRole(1)(req, res, () => {
+                rooms.getRooms(req, res);
+            });
+        });
+
+    // staff-only — update a room's availability status
+    } else if (req.method === 'PATCH' && req.url.startsWith('/api/rooms/')) {
+        verifyToken(req, res, () => {
+            requireRole(1)(req, res, () => {
+                rooms.updateRoomStatus(req, res);
+            });
+        });
+
     // staff-only — view all holds
     } else if (req.method === 'GET' && req.url === '/api/holds') {
         verifyToken(req, res, () => {
@@ -294,7 +310,26 @@ const server = http.createServer((req, res) => {
                 staff.updateStaffInfo(req, res);
             });
         });
+    // admin-only — soft deactivate a staff member
+    } else if (req.method === 'DELETE' && req.url.startsWith('/api/staff/')) {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                staff.deactivateStaff(req, res);
+            });
+        });
     // admin-only — reports on popularity
+    } else if (req.method === 'GET' && req.url.startsWith('/api/reports/overview')) {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                reports.getReportsOverview(req, res);
+            });
+        });
+    } else if (req.method === 'GET' && req.url.startsWith('/api/reports/popularity-overview')) {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                reports.getPopularityOverview(req, res);
+            });
+        });
     } else if (req.method === 'GET' && req.url.startsWith('/api/reports/popularity')) {
         verifyToken(req, res, () => {
             requireAdmin(req, res, () => {
@@ -309,13 +344,33 @@ const server = http.createServer((req, res) => {
             });
         }); 
     // admin-only — reports on popularity
+    } else if (req.method === 'GET' && req.url.startsWith('/api/reports/patrons-overview')) {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                reports.getPatronsOverview(req, res);
+            });
+        });
     } else if (req.method === 'GET' && req.url.startsWith('/api/reports/patrons')) {
         verifyToken(req, res, () => {
             requireAdmin(req, res, () => {
                 reports.getPatronsActivityReport(req, res);
             });
-        }); 
-        
+        });
+    // admin-only — revenue report KPIs (must come before /api/reports/revenue)
+    } else if (req.method === 'GET' && req.url.startsWith('/api/reports/revenue-overview')) {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                reports.getRevenueOverview(req, res);
+            });
+        });
+    // admin-only — revenue report records
+    } else if (req.method === 'GET' && req.url.startsWith('/api/reports/revenue')) {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                reports.getRevenueReport(req, res);
+            });
+        });
+
     }
     else {
         res.writeHead(404);

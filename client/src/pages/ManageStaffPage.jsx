@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import NavigationBar from "../components/NavigationBar";
 import { apiFetch } from "../api";
@@ -24,6 +24,8 @@ export default function ManageStaffPage() {
   const [editForm,    setEditForm]    = useState({});
   const [editLoading, setEditLoading] = useState(false);
   const [editMessage, setEditMessage] = useState({ text: "", success: true });
+  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
+  const [deactivateLoading, setDeactivateLoading] = useState(false);
 
   // ── Register ─────────────────────────────────────────────────────────────
   const [registerOpen,    setRegisterOpen]    = useState(false);
@@ -31,7 +33,7 @@ export default function ManageStaffPage() {
   const [registerMessage, setRegisterMessage] = useState({ text: "", success: true });
   const [registerLoading, setRegisterLoading] = useState(false);
 
-  const fetchStaff = async () => {
+  const fetchStaff = useCallback(async () => {
     setLoadingStaff(true);
     setListError("");
     try {
@@ -44,12 +46,13 @@ export default function ManageStaffPage() {
     } finally {
       setLoadingStaff(false);
     }
-  };
+  }, [token]);
 
-  useEffect(() => { fetchStaff(); }, []);
+  useEffect(() => { fetchStaff(); }, [fetchStaff]);
 
   const handleSelect = (member) => {
     setSelected(member);
+    setShowDeactivateConfirm(false);
     setEditForm({
       first_name:   member.First_name,
       last_name:    member.Last_name,
@@ -93,6 +96,35 @@ export default function ManageStaffPage() {
       setEditMessage({ text: "Unable to connect to the server.", success: false });
     } finally {
       setEditLoading(false);
+    }
+  };
+
+  const handleDeactivateStaff = async () => {
+    if (!selected) return;
+
+    setDeactivateLoading(true);
+    setEditMessage({ text: "", success: true });
+
+    try {
+      const r = await apiFetch(`/api/staff/${selected.Person_ID}`, {
+        method: "DELETE",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await r.json();
+
+      if (!r.ok) {
+        setEditMessage({ text: data.error || "Failed to deactivate staff member.", success: false });
+        return;
+      }
+
+      setShowDeactivateConfirm(false);
+      setSelected(null);
+      setEditForm({});
+      await fetchStaff();
+    } catch {
+      setEditMessage({ text: "Unable to connect to the server.", success: false });
+    } finally {
+      setDeactivateLoading(false);
     }
   };
 
@@ -322,13 +354,52 @@ export default function ManageStaffPage() {
 
                   <Banner message={editMessage} onDismiss={() => setEditMessage({ text: "", success: true })} />
 
-                  <button
-                    onClick={handleSaveEdit}
-                    disabled={editLoading}
-                    className="w-full bg-green-900 text-white py-3 rounded-lg font-semibold hover:bg-green-800 disabled:opacity-50"
-                  >
-                    {editLoading ? "Saving..." : "Save Changes"}
-                  </button>
+                  {showDeactivateConfirm && (
+                    <div className="rounded-xl border border-red-200 bg-red-50 px-4 py-4">
+                      <p className="text-sm font-semibold text-red-700">
+                        Are you sure you want to deactivate this staff account?
+                      </p>
+                      <p className="mt-1 text-sm text-red-600">
+                        The account will be disabled and removed from the staff list.
+                      </p>
+                      <div className="mt-4 flex flex-col-reverse gap-3 sm:flex-row sm:justify-end">
+                        <button
+                          type="button"
+                          onClick={() => setShowDeactivateConfirm(false)}
+                          disabled={deactivateLoading}
+                          className="rounded-lg bg-green-900 px-4 py-2 text-sm font-semibold text-white hover:bg-green-800 disabled:opacity-50"
+                        >
+                          No, Keep Account
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleDeactivateStaff}
+                          disabled={deactivateLoading}
+                          className="rounded-lg bg-red-600 px-4 py-2 text-sm font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                        >
+                          {deactivateLoading ? "Deactivating..." : "Yes, Deactivate"}
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="flex flex-col gap-3 sm:flex-row">
+                    <button
+                      onClick={handleSaveEdit}
+                      disabled={editLoading || deactivateLoading}
+                      className="flex-1 rounded-lg bg-green-900 py-3 font-semibold text-white hover:bg-green-800 disabled:opacity-50"
+                    >
+                      {editLoading ? "Saving..." : "Save Changes"}
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setShowDeactivateConfirm(true)}
+                      disabled={editLoading || deactivateLoading}
+                      className="rounded-lg bg-red-600 px-5 py-3 font-semibold text-white hover:bg-red-700 disabled:opacity-50"
+                    >
+                      Deactivate Staff
+                    </button>
+                  </div>
                 </div>
               )}
           </div>

@@ -1,55 +1,50 @@
 /* eslint-disable react-refresh/only-export-components */
 import {
-  InputControl,
+  FEE_STATUS_OPTIONS,
+  FEE_TYPE_OPTIONS,
+  ITEM_TYPE_OPTIONS,
   ROLE_OPTIONS,
   ReportTable,
   SelectControl,
   appendPeriodParams,
   createDefaultPeriodFilters,
   formatDate,
-  formatDecimal,
+  formatFeeStatus,
+  formatFeeType,
+  formatItemType,
   formatMoney,
-  formatNumber,
-  getPatronIdentityText,
   formatRole,
-  renderPatronIdentityCell,
 } from "./reportShared";
 
 export const feesReportPage = {
-  key: "fees",
-  label: "Unpaid Fees",
-  pdfTitle: "Unpaid Fees Report",
-  description:
-    "Spot high-risk accounts by balance, fee count, and how long unpaid debt has been sitting.",
-  endpoint: "/api/reports/fees",
-  defaultSort: "unpaid_total",
+  key: "revenue",
+  label: "Revenue",
+  pdfTitle: "Revenue Report",
+  description: "Full fee history with revenue collected, backlog, and breakdown by type, item, or patron.",
+  endpoint: "/api/reports/revenue",
+  defaultSort: "date_owed",
   createInitialFilters() {
     return {
       ...createDefaultPeriodFilters(),
       role: "All",
-      minTotal: "",
-      minFeeCount: "",
-      minDaysOutstanding: "",
+      feeType: "All",
+      itemType: "All",
+      paidStatus: "All",
     };
   },
   buildParams(params, filters) {
     appendPeriodParams(params, filters);
     if (filters.role !== "All") params.set("role", filters.role);
-    if (filters.minTotal !== "") params.set("minTotal", filters.minTotal);
-    if (filters.minFeeCount !== "") params.set("minFeeCount", filters.minFeeCount);
-    if (filters.minDaysOutstanding !== "") {
-      params.set("minDaysOutstanding", filters.minDaysOutstanding);
-    }
+    if (filters.feeType !== "All") params.set("feeType", filters.feeType);
+    if (filters.itemType !== "All") params.set("itemType", filters.itemType);
+    if (filters.paidStatus !== "All") params.set("paidStatus", filters.paidStatus);
   },
   getExportSummary(filters) {
     return [
-      {
-        label: "Patron Type",
-        value: ROLE_OPTIONS.find((option) => option.value === filters.role)?.label ?? "All",
-      },
-      { label: "Minimum Balance", value: filters.minTotal || "None" },
-      { label: "Minimum Fee Count", value: filters.minFeeCount || "None" },
-      { label: "Minimum Debt Age", value: filters.minDaysOutstanding ? `${filters.minDaysOutstanding} days` : "None" },
+      { label: "Role", value: ROLE_OPTIONS.find((o) => o.value === filters.role)?.label ?? "All" },
+      { label: "Fee Type", value: FEE_TYPE_OPTIONS.find((o) => o.value === filters.feeType)?.label ?? "All" },
+      { label: "Item Type", value: ITEM_TYPE_OPTIONS.find((o) => o.value === filters.itemType)?.label ?? "All" },
+      { label: "Status", value: FEE_STATUS_OPTIONS.find((o) => o.value === filters.paidStatus)?.label ?? "All" },
     ];
   },
 };
@@ -58,32 +53,28 @@ export function FeesReportsFilters({ filters, onChange }) {
   return (
     <>
       <SelectControl
-        label="Patron Type"
+        label="Fee Type"
+        value={filters.feeType}
+        onChange={(value) => onChange("feeType", value)}
+        options={FEE_TYPE_OPTIONS}
+      />
+      <SelectControl
+        label="Item Type"
+        value={filters.itemType}
+        onChange={(value) => onChange("itemType", value)}
+        options={ITEM_TYPE_OPTIONS}
+      />
+      <SelectControl
+        label="Role"
         value={filters.role}
         onChange={(value) => onChange("role", value)}
         options={ROLE_OPTIONS}
       />
-      <InputControl
-        label="Min Balance"
-        type="number"
-        min={0}
-        step="0.01"
-        value={filters.minTotal}
-        onChange={(value) => onChange("minTotal", value)}
-      />
-      <InputControl
-        label="Min Fee Count"
-        type="number"
-        min={0}
-        value={filters.minFeeCount}
-        onChange={(value) => onChange("minFeeCount", value)}
-      />
-      <InputControl
-        label="Min Debt Age (Days)"
-        type="number"
-        min={0}
-        value={filters.minDaysOutstanding}
-        onChange={(value) => onChange("minDaysOutstanding", value)}
+      <SelectControl
+        label="Status"
+        value={filters.paidStatus}
+        onChange={(value) => onChange("paidStatus", value)}
+        options={FEE_STATUS_OPTIONS}
       />
     </>
   );
@@ -102,7 +93,7 @@ export function FeesReportsTable({
 
   return (
     <ReportTable
-      reportType="fees"
+      reportType="revenue"
       sort={sort}
       sortDirection={sortDirection}
       data={data}
@@ -117,66 +108,79 @@ export function FeesReportsTable({
 export function getFeesColumns(periodLabel) {
   return [
     {
-      key: "patron",
-      label: "Patron",
+      key: "borrower",
+      label: "Borrower",
       sortable: false,
       hideable: false,
-      render: renderPatronIdentityCell,
-      exportValue: getPatronIdentityText,
+      width: 220,
+      render: (item) => (
+        <div className="min-w-[200px]">
+          <div className="font-semibold text-green-900">
+            {item.First_name} {item.Last_name}
+          </div>
+          <div className="text-xs text-gray-500">
+            ID: {item.Person_ID} · {formatRole(item.role)}
+          </div>
+        </div>
+      ),
+      exportValue: (item) => `${item.First_name} ${item.Last_name} (ID: ${item.Person_ID})`,
     },
     {
-      key: "role",
-      label: "Role",
-      render: (item) => formatRole(item.role),
-      exportValue: (item) => formatRole(item.role),
+      key: "Item_name",
+      label: `Item (${periodLabel})`,
+      width: 200,
+      render: (item) => (
+        <div className="min-w-[180px]">
+          <div className="font-medium text-gray-800">{item.Item_name}</div>
+          <div className="text-xs text-gray-500">{formatItemType(item.Item_type)}</div>
+        </div>
+      ),
+      exportValue: (item) => `${item.Item_name} (${formatItemType(item.Item_type)})`,
     },
     {
-      key: "unpaid_total",
-      label: `Unpaid Total (${periodLabel})`,
-      render: (item) => formatMoney(item.unpaid_total),
-      exportValue: (item) => formatMoney(item.unpaid_total),
+      key: "fee_type",
+      label: "Fee Type",
+      width: 110,
+      render: (item) => formatFeeType(item.fee_type),
+      exportValue: (item) => formatFeeType(item.fee_type),
     },
     {
-      key: "unpaid_fee_count",
-      label: `Unpaid Fees (${periodLabel})`,
-      render: (item) => formatNumber(item.unpaid_fee_count),
-      exportValue: (item) => formatNumber(item.unpaid_fee_count),
+      key: "fee_amount",
+      label: "Amount",
+      width: 110,
+      render: (item) => formatMoney(item.fee_amount),
+      exportValue: (item) => formatMoney(item.fee_amount),
     },
     {
-      key: "overdue_item_count",
-      label: `Affected Items (${periodLabel})`,
-      render: (item) => formatNumber(item.overdue_item_count),
-      exportValue: (item) => formatNumber(item.overdue_item_count),
+      key: "fee_status",
+      label: "Status",
+      width: 100,
+      render: (item) => (
+        <span
+          className={`rounded-full px-2 py-0.5 text-xs font-semibold ${
+            Number(item.fee_status) === 2
+              ? "bg-green-100 text-green-800"
+              : "bg-red-100 text-red-700"
+          }`}
+        >
+          {formatFeeStatus(item.fee_status)}
+        </span>
+      ),
+      exportValue: (item) => formatFeeStatus(item.fee_status),
     },
     {
-      key: "avg_fee_amount",
-      label: `Avg Fee (${periodLabel})`,
-      render: (item) => formatMoney(item.avg_fee_amount),
-      exportValue: (item) => formatMoney(item.avg_fee_amount),
+      key: "date_owed",
+      label: "Date Incurred",
+      width: 130,
+      render: (item) => formatDate(item.date_owed),
+      exportValue: (item) => formatDate(item.date_owed),
     },
     {
-      key: "largest_fee_amount",
-      label: `Largest Fee (${periodLabel})`,
-      render: (item) => formatMoney(item.largest_fee_amount),
-      exportValue: (item) => formatMoney(item.largest_fee_amount),
-    },
-    {
-      key: "max_days_outstanding",
-      label: `Oldest Debt Age (${periodLabel})`,
-      render: (item) => `${formatNumber(item.max_days_outstanding)} days`,
-      exportValue: (item) => `${formatNumber(item.max_days_outstanding)} days`,
-    },
-    {
-      key: "avg_days_outstanding",
-      label: `Avg Debt Age (${periodLabel})`,
-      render: (item) => `${formatDecimal(item.avg_days_outstanding)} days`,
-      exportValue: (item) => `${formatDecimal(item.avg_days_outstanding)} days`,
-    },
-    {
-      key: "oldest_unpaid_date",
-      label: `Oldest Debt Date (${periodLabel})`,
-      render: (item) => formatDate(item.oldest_unpaid_date),
-      exportValue: (item) => formatDate(item.oldest_unpaid_date),
+      key: "Payment_Date",
+      label: "Payment Date",
+      width: 130,
+      render: (item) => formatDate(item.Payment_Date),
+      exportValue: (item) => formatDate(item.Payment_Date),
     },
   ];
 }

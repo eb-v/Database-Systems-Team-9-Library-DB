@@ -112,8 +112,8 @@ export default function ViewAccountPage() {
   fetchHoldsAndBorrows();
   }, [token]);
 
-const holdsCount = useMemo(() => holds.length, [holds]);
-const borrowsCount = useMemo(() => borrows.length, [borrows]);  
+  const holdsCount = useMemo(() => holds.length, [holds]);
+  const borrowsCount = useMemo(() => borrows.length, [borrows]);  
 
   const accountCards = [
     {
@@ -206,8 +206,8 @@ const borrowsCount = useMemo(() => borrows.length, [borrows]);
 
                 {card.title === "Pay Fees" && (
                   <p
-                    className={`text-sm mt-3 font-semibold ${
-                      unpaidTotal > 0 ? "text-red-600" : "text-green-600"
+                    className={`text-sm mt-2 font-semibold px-2 py-1 rounded-md ${
+                      unpaidTotal > 0 ? "text-red-700 bg-red-100" : "text-green-700 bg-green-100"
                     }`}
                   >
                     {unpaidTotal > 0
@@ -217,8 +217,7 @@ const borrowsCount = useMemo(() => borrows.length, [borrows]);
                 )}
 
                 {card.title === "My Holds" && (
-                  <p className="text-sm mt-1 font-semibold ${}
-                  text-green-600">
+                  <p className="text-sm mt-2 font-semibold px-2 py-1 rounded-md bg-green-100 text-green-700">
                     {holdsCount > 0
                       ? `${holdsCount} active hold${holdsCount > 1 ? "s" : ""}`
                       : "No active holds"}
@@ -226,7 +225,7 @@ const borrowsCount = useMemo(() => borrows.length, [borrows]);
                 )}
 
                 {card.title === "Active Borrows" && (
-                  <p className="text-sm mt-1 font-semibold text-green-600">
+                  <p className="text-sm mt-2 font-semibold px-2 py-1 rounded-md bg-green-100 text-green-700">
                     {borrowsCount > 0
                       ? `${borrowsCount} borrowed item${borrowsCount > 1 ? "s" : ""}`
                       : "No active borrows"}

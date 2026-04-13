@@ -363,7 +363,7 @@ export default function UserLookupPage() {
 
 function fmtDate(str) {
   if (!str) return "—";
-  return new Date(str).toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
+  return new Date(str.slice(0, 10) + 'T00:00:00').toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
 }
 
 const BADGE_COLORS = {

@@ -8,6 +8,7 @@ async function getAllStaff(req, res) {
                     p.phone_number, p.birthday, p.account_status, s.Staff_permissions
              FROM Person p
              JOIN Staff s ON p.Person_ID = s.Person_ID
+             WHERE p.account_status = 1
              ORDER BY s.Staff_permissions ASC, p.Last_name ASC`
         );
 
@@ -113,4 +114,51 @@ async function updateStaffInfo(req, res) {
     });
 }
 
-module.exports = { getAllStaff, updateStaffPermissions, updateStaffInfo };
+async function deactivateStaff(req, res) {
+    try {
+        const personId = parseInt(req.url.split('/')[3], 10);
+
+        if (!Number.isInteger(personId)) {
+            res.writeHead(400);
+            return res.end(JSON.stringify({ error: 'Invalid staff member id' }));
+        }
+
+        if (req.user.person_id === personId) {
+            res.writeHead(403);
+            return res.end(JSON.stringify({ error: 'You cannot deactivate your own account' }));
+        }
+
+        const [staffRows] = await db.query(
+            `SELECT p.Person_ID, p.account_status
+             FROM Person p
+             JOIN Staff s ON p.Person_ID = s.Person_ID
+             WHERE p.Person_ID = ?`,
+            [personId]
+        );
+
+        if (staffRows.length === 0) {
+            res.writeHead(404);
+            return res.end(JSON.stringify({ error: 'Staff member not found' }));
+        }
+
+        if (Number(staffRows[0].account_status) === 0) {
+            res.writeHead(409);
+            return res.end(JSON.stringify({ error: 'Staff member is already deactivated' }));
+        }
+
+        await db.query(
+            `UPDATE Person
+             SET account_status = 0
+             WHERE Person_ID = ?`,
+            [personId]
+        );
+
+        res.writeHead(200);
+        res.end(JSON.stringify({ message: 'Staff member deactivated successfully' }));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to deactivate staff member', details: err.message }));
+    }
+}
+
+module.exports = { getAllStaff, updateStaffPermissions, updateStaffInfo, deactivateStaff };
