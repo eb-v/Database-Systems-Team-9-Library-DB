@@ -121,6 +121,39 @@ async function markNotificationAsRead(req, res) {
     }
 }
 
+async function markNotificationAsUnread(req, res) {
+    try {
+        const url = new URL(req.url, 'http://localhost:3000');
+        const parts = url.pathname.split('/');
+        // URL is /api/notifications/:id/unread — id is at index 3
+        const notificationId = parts[3];
+        const personId = req.user.person_id;
+
+        if (!notificationId) {
+            res.writeHead(400, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Notification ID is required' }));
+        }
+
+        const [result] = await db.query(
+            `UPDATE notification
+             SET is_read = 0
+             WHERE Notification_ID = ? AND Person_ID = ?`,
+            [notificationId, personId]
+        );
+
+        if (result.affectedRows === 0) {
+            res.writeHead(404, { 'Content-Type': 'application/json' });
+            return res.end(JSON.stringify({ error: 'Notification not found' }));
+        }
+
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ message: 'Notification marked as unread' }));
+    } catch (err) {
+        res.writeHead(500, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'Failed to mark notification as unread', details: err.message }));
+    }
+}
+
 async function markAllNotificationsAsRead(req, res) {
     try {
         const personId = req.user.person_id;
@@ -149,5 +182,6 @@ module.exports = {
     getMyNotifications,
     getNotificationSummary,
     markNotificationAsRead,
+    markNotificationAsUnread,
     markAllNotificationsAsRead
 };

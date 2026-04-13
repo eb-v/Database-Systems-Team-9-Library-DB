@@ -63,31 +63,34 @@ export default function NotificationsPage() {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-  const handleMarkAsRead = async (notificationId) => {
+  const handleToggleRead = async (notification) => {
+    const { Notification_ID, is_read } = notification;
+    const url = is_read
+      ? `/api/notifications/${Notification_ID}/unread`
+      : `/api/notifications/${Notification_ID}`;
+
     try {
-      const response = await apiFetch(`/api/notifications/${notificationId}`, {
+      const response = await apiFetch(url, {
         method: "PUT",
-        headers: {
-          Authorization: `Bearer ${token}`,
-        },
+        headers: { Authorization: `Bearer ${token}` },
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        console.error(data.error || "Failed to mark notification as read.");
+        console.error(data.error || "Failed to update notification.");
         return;
       }
 
       setNotifications((prev) =>
-        prev.map((notification) =>
-          notification.Notification_ID === notificationId
-            ? { ...notification, is_read: 1 }
-            : notification
+        prev.map((n) =>
+          n.Notification_ID === Notification_ID
+            ? { ...n, is_read: is_read ? 0 : 1 }
+            : n
         )
       );
     } catch (err) {
-      console.error("Unable to mark notification as read.", err);
+      console.error("Unable to update notification.", err);
     }
   };
 
@@ -214,15 +217,14 @@ export default function NotificationsPage() {
 
                   <div>
                     <button
-                      onClick={() => handleMarkAsRead(notification.Notification_ID)}
-                      disabled={notification.is_read}
+                      onClick={() => handleToggleRead(notification)}
                       className={`px-4 py-2 rounded-lg font-semibold ${
                         notification.is_read
-                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          ? "bg-white border border-gray-400 text-gray-600 hover:bg-gray-100"
                           : "bg-white border border-green-900 text-green-900 hover:bg-green-100"
                       }`}
                     >
-                      {notification.is_read ? "Read" : "Mark as Read"}
+                      {notification.is_read ? "Mark as Unread" : "Mark as Read"}
                     </button>
                   </div>
                 </div>

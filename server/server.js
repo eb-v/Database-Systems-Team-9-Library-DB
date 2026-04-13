@@ -105,10 +105,15 @@ const server = http.createServer((req, res) => {
         notifications.markAllNotificationsAsRead(req, res);
     });
 
+    } else if (req.method === 'PUT' && req.url.match(/^\/api\/notifications\/\d+\/unread$/)) {
+        verifyToken(req, res, () => {
+            notifications.markNotificationAsUnread(req, res);
+        });
+
     } else if (req.method === 'PUT' && req.url.startsWith('/api/notifications/')) {
         verifyToken(req, res, () => {
-        notifications.markNotificationAsRead(req, res);
-    });
+            notifications.markNotificationAsRead(req, res);
+        });
         // any logged-in user can view homepage notification summary
     } else if (req.method === 'GET' && req.url === '/api/notifications/summary') {
         verifyToken(req, res, () => {
