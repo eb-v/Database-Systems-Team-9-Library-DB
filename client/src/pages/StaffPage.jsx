@@ -69,6 +69,12 @@ const staffToolCards = [
     icon: itemIcon,
     path: "/manage-items",
   },
+  {
+    title: "Manage Rooms",
+    description: "Add rooms and control availability.",
+    icon: roomIcon,
+    path: "/manage-rooms",
+  },
 ];
 
 export default function StaffPage() {

@@ -340,4 +340,47 @@ async function getAvailableSlots(req, res) {
     }
 }
 
-module.exports = { addRoom, makeReservation, getReservationsForPerson, getAllReservations, cancelReservation, getAvailableSlots };
+async function getRooms(req, res) {
+    try {
+        const [rows] = await db.query(`SELECT Room_ID, Room_status FROM Room ORDER BY Room_ID ASC`);
+        res.writeHead(200);
+        res.end(JSON.stringify(rows));
+    } catch (err) {
+        res.writeHead(500);
+        res.end(JSON.stringify({ error: 'Failed to fetch rooms', details: err.message }));
+    }
+}
+
+async function updateRoomStatus(req, res) {
+    let body = '';
+    req.on('data', chunk => body += chunk);
+    req.on('end', async () => {
+        try {
+            const roomId = req.url.split('/')[3];
+            const { Room_status } = JSON.parse(body);
+
+            if (Room_status !== 0 && Room_status !== 1) {
+                res.writeHead(400);
+                return res.end(JSON.stringify({ error: 'Room_status must be 0 (unavailable) or 1 (available)' }));
+            }
+
+            const [result] = await db.query(
+                `UPDATE Room SET Room_status = ? WHERE Room_ID = ?`,
+                [Room_status, roomId]
+            );
+
+            if (result.affectedRows === 0) {
+                res.writeHead(404);
+                return res.end(JSON.stringify({ error: 'Room not found' }));
+            }
+
+            res.writeHead(200);
+            res.end(JSON.stringify({ message: 'Room status updated successfully' }));
+        } catch (err) {
+            res.writeHead(500);
+            res.end(JSON.stringify({ error: 'Failed to update room status', details: err.message }));
+        }
+    });
+}
+
+module.exports = { addRoom, getRooms, updateRoomStatus, makeReservation, getReservationsForPerson, getAllReservations, cancelReservation, getAvailableSlots };

@@ -78,6 +78,12 @@ const adminToolCards = [
     path: "/manage-staff",
   },
   {
+    title: "Manage Rooms",
+    description: "Add rooms and control availability.",
+    icon: roomIcon,
+    path: "/manage-rooms",
+  },
+  {
     title: "Reports",
     description: "View system reports and analytics.",
     icon: reportIcon,

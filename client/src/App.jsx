@@ -19,6 +19,7 @@ import RentADevicePage from "./pages/RentADevicePage";
 import DeviceDetailPage from "./pages/DeviceDetailPage";
 import AdminPage from "./pages/AdminPage";
 import ManageStaffPage from "./pages/ManageStaffPage";
+import ManageRoomsPage from "./pages/ManageRoomsPage";
 import ReportsPage from "./pages/ReportsPage";
 import NotificationsPage from "./pages/NotificationsPage";
 
@@ -46,6 +47,7 @@ export default function App() {
       <Route path="/rent-a-device/:id" element={<DeviceDetailPage />} />
       <Route path="/admin" element={<AdminPage />} />
       <Route path="/manage-staff" element={<ManageStaffPage />} />
+      <Route path="/manage-rooms" element={<ManageRoomsPage />} />
       <Route path="/reports" element={<ReportsPage />} />
       <Route path="/notifications" element={<NotificationsPage />} />
     </Routes>

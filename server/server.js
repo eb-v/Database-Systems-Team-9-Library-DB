@@ -205,6 +205,22 @@ const server = http.createServer((req, res) => {
             });
         });
 
+    // staff-only — list all rooms
+    } else if (req.method === 'GET' && req.url === '/api/rooms') {
+        verifyToken(req, res, () => {
+            requireRole(1)(req, res, () => {
+                rooms.getRooms(req, res);
+            });
+        });
+
+    // staff-only — update a room's availability status
+    } else if (req.method === 'PATCH' && req.url.startsWith('/api/rooms/')) {
+        verifyToken(req, res, () => {
+            requireRole(1)(req, res, () => {
+                rooms.updateRoomStatus(req, res);
+            });
+        });
+
     // staff-only — view all holds
     } else if (req.method === 'GET' && req.url === '/api/holds') {
         verifyToken(req, res, () => {
