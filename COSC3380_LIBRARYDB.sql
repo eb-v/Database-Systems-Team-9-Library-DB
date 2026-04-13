@@ -145,6 +145,24 @@ CREATE TABLE IF NOT EXISTS FeePayment (
   FOREIGN KEY (Fine_ID) REFERENCES FeeOwed(Fine_ID)
 );
 
+CREATE TABLE IF NOT EXISTS Notification (
+  Notification_ID  INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
+  Person_ID        INT NOT NULL,
+  type             SMALLINT NOT NULL,
+  message          VARCHAR(255) NOT NULL,
+  is_read          TINYINT(1) NOT NULL DEFAULT 0,
+  created_at       DATETIME NOT NULL,
+  Fine_ID          INT DEFAULT NULL,
+  Hold_ID          INT DEFAULT NULL,
+  KEY (Person_ID),
+  KEY (Fine_ID),
+  KEY (Hold_ID),
+  FOREIGN KEY (Person_ID) REFERENCES Person(Person_ID),
+  FOREIGN KEY (Fine_ID) REFERENCES FeeOwed(Fine_ID),
+  FOREIGN KEY (Hold_ID) REFERENCES HoldItem(Hold_ID)
+);
+
+
 DELIMITER //
 
 CREATE TRIGGER restrict_borrow_on_fee
@@ -203,3 +221,4 @@ BEGIN
 END //
 
 DELIMITER ;
+

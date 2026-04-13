@@ -32,7 +32,7 @@ async function cleanupExpiredHolds() {
 
         // promote next waiting hold
         const [nextHold] = await db.query(
-            `SELECT h.Hold_ID FROM HoldItem h
+            `SELECT h.Hold_ID, h.Person_ID FROM HoldItem h
              JOIN Copy c ON h.Copy_ID = c.Copy_ID
              WHERE c.Item_ID = ? AND h.hold_status = 1
              ORDER BY h.queue_status ASC, h.hold_date ASC LIMIT 1`,
@@ -44,6 +44,13 @@ async function cleanupExpiredHolds() {
             await db.query(
                 `UPDATE HoldItem SET hold_status = 2, expiry_date = ?, Copy_ID = ? WHERE Hold_ID = ?`,
                 [formatDate(expiry), expired.Copy_ID, nextHold[0].Hold_ID]
+            );
+            const [itemRow] = await db.query(`SELECT Item_name FROM Item WHERE Item_ID = ?`, [expired.Item_ID]);
+            const itemName = itemRow[0]?.Item_name || 'your item';
+            await db.query(
+                `INSERT INTO notification (Person_ID, type, message, is_read, created_at, Hold_ID)
+                 VALUES (?, 'hold_ready', ?, 0, NOW(), ?)`,
+                [nextHold[0].Person_ID, `Your hold for "${itemName}" is ready for pickup. Please pick it up within 2 days.`, nextHold[0].Hold_ID]
             );
         }
     }
@@ -62,7 +69,7 @@ async function placeHold(req, res) {
                 return res.end(JSON.stringify({ error: 'You can only place holds on your own behalf' }));
             }
 
-            const [itemRows] = await db.query(`SELECT Item_ID FROM Item WHERE Item_ID = ?`, [item_id]);
+            const [itemRows] = await db.query(`SELECT Item_ID, Item_name FROM Item WHERE Item_ID = ?`, [item_id]);
             if (itemRows.length === 0) {
                 res.writeHead(404);
                 return res.end(JSON.stringify({ error: 'Item not found' }));
@@ -142,6 +149,15 @@ async function placeHold(req, res) {
                 [queuePosition, holdStatus, holdDate, expiryDate, person_id, assignedCopyId]
             );
 
+            if (isReady) {
+                const itemName = itemRows[0]?.Item_name || 'your item';
+                await db.query(
+                    `INSERT INTO notification (Person_ID, type, message, is_read, created_at, Hold_ID)
+                     VALUES (?, 3, ?, 0, NOW(), ?)`,
+                    [person_id, `Your hold for "${itemName}" is ready for pickup. Please pick it up within 2 days.`, result.insertId]
+                );
+            }
+
             res.writeHead(201);
             res.end(JSON.stringify({
                 message: 'Hold placed successfully',
@@ -203,7 +219,7 @@ async function cancelHold(req, res) {
         // the promote_next_hold trigger won't fire (no Copy status changed), so promote manually
         if (hold.hold_status === 2) {
             const [nextHold] = await db.query(
-                `SELECT h.Hold_ID FROM HoldItem h
+                `SELECT h.Hold_ID, h.Person_ID FROM HoldItem h
                  JOIN Copy c ON h.Copy_ID = c.Copy_ID
                  WHERE c.Item_ID = ? AND h.hold_status = 1
                  ORDER BY h.queue_status ASC, h.hold_date ASC LIMIT 1`,
@@ -215,6 +231,13 @@ async function cancelHold(req, res) {
                 await db.query(
                     `UPDATE HoldItem SET hold_status = 2, expiry_date = ?, Copy_ID = ? WHERE Hold_ID = ?`,
                     [formatDate(expiry), hold.Copy_ID, nextHold[0].Hold_ID]
+                );
+                const [itemRow] = await db.query(`SELECT Item_name FROM Item WHERE Item_ID = ?`, [itemId]);
+                const itemName = itemRow[0]?.Item_name || 'your item';
+                await db.query(
+                    `INSERT INTO notification (Person_ID, type, message, is_read, created_at, Hold_ID)
+                     VALUES (?, 3, ?, 0, NOW(), ?)`,
+                    [nextHold[0].Person_ID, `Your hold for "${itemName}" is ready for pickup. Please pick it up within 2 days.`, nextHold[0].Hold_ID]
                 );
             }
         }

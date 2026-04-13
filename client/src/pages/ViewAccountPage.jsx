@@ -20,6 +20,7 @@ export default function ViewAccountPage() {
   const [setMessage] = useState("");
   const [holds, setHolds] = useState([]);
   const [borrows, setBorrows] = useState([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   useEffect(() => {
     if (!token) {
@@ -77,17 +78,21 @@ export default function ViewAccountPage() {
       const payload = JSON.parse(atob(token.split(".")[1]));
       const currentPersonId = payload.person_id;
 
-      const [holdsResponse, borrowsResponse] = await Promise.all([
+      const [holdsResponse, borrowsResponse, notifResponse] = await Promise.all([
         apiFetch(`/api/holds/${currentPersonId}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
         apiFetch(`/api/borrow/${currentPersonId}`, {
           headers: { Authorization: `Bearer ${token}` },
         }),
+        apiFetch("/api/notifications", {
+          headers: { Authorization: `Bearer ${token}` },
+        }),
       ]);
 
       const holdsData = await holdsResponse.json();
       const borrowsData = await borrowsResponse.json();
+      const notifData = await notifResponse.json();
 
       if (holdsResponse.ok) {
         setHolds(
@@ -102,6 +107,12 @@ export default function ViewAccountPage() {
           Array.isArray(borrowsData)
             ? borrowsData.filter((b) => b.Copy_status === 2)
             : []
+        );
+      }
+
+      if (notifResponse.ok) {
+        setUnreadNotifCount(
+          Array.isArray(notifData) ? notifData.filter((n) => !n.is_read).length : 0
         );
       }
     } catch (error) {
@@ -229,6 +240,14 @@ export default function ViewAccountPage() {
                     {borrowsCount > 0
                       ? `${borrowsCount} borrowed item${borrowsCount > 1 ? "s" : ""}`
                       : "No active borrows"}
+                  </p>
+                )}
+
+                {card.title === "View My Notifications" && (
+                  <p className={`text-sm mt-2 font-semibold px-2 py-1 rounded-md ${unreadNotifCount > 0 ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-700"}`}>
+                    {unreadNotifCount > 0
+                      ? `${unreadNotifCount} unread`
+                      : "All caught up"}
                   </p>
                 )}
               </div>

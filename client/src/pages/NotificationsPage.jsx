@@ -19,38 +19,20 @@ export default function NotificationsPage() {
   useEffect(() => {
     const fetchNotifications = async () => {
       try {
-        // Replace this later with your real backend route
-        // Example:
-        // const response = await apiFetch(`/api/notifications/${personId}`, {
-        //   headers: { Authorization: `Bearer ${token}` },
-        // });
+        const response = await apiFetch("/api/notifications", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
 
-        // Temporary mock data for UI development
-        const mockNotifications = [
-          {
-            Notification_ID: 1,
-            type: 1,
-            message: "Your hold is ready for pickup.",
-            is_read: 0,
-            created_at: "2026-04-06T10:30:00",
-          },
-          {
-            Notification_ID: 2,
-            type: 2,
-            message: "A fee has been added to your account.",
-            is_read: 1,
-            created_at: "2026-04-05T14:15:00",
-          },
-          {
-            Notification_ID: 3,
-            type: 3,
-            message: "Reminder: one of your borrowed items is due soon.",
-            is_read: 0,
-            created_at: "2026-04-04T09:00:00",
-          },
-        ];
+        const data = await response.json();
 
-        setNotifications(mockNotifications);
+        if (!response.ok) {
+          setError(data.error || "Failed to load notifications.");
+          return;
+        }
+
+        setNotifications(data);
       } catch (err) {
         setError("Unable to load notifications.");
       } finally {
@@ -68,12 +50,12 @@ export default function NotificationsPage() {
 
   const getNotificationType = (type) => {
     switch (type) {
-      case 1:
-        return "Hold Update";
       case 2:
         return "Fee Update";
       case 3:
-        return "Reminder";
+        return "Hold Ready";
+      case 4:
+        return "Reservation Cancelled";
       default:
         return "Notification";
     }
@@ -81,35 +63,62 @@ export default function NotificationsPage() {
 
   const unreadCount = notifications.filter((n) => !n.is_read).length;
 
-  const handleMarkAsRead = (notificationId) => {
-    setNotifications((prev) =>
-      prev.map((notification) =>
-        notification.Notification_ID === notificationId
-          ? { ...notification, is_read: 1 }
-          : notification
-      )
-    );
+  const handleToggleRead = async (notification) => {
+    const { Notification_ID, is_read } = notification;
+    const url = is_read
+      ? `/api/notifications/${Notification_ID}/unread`
+      : `/api/notifications/${Notification_ID}`;
 
-    // Later:
-    // await apiFetch(`/api/notifications/${notificationId}/read`, {
-    //   method: "PATCH",
-    //   headers: { Authorization: `Bearer ${token}` },
-    // });
+    try {
+      const response = await apiFetch(url, {
+        method: "PUT",
+        headers: { Authorization: `Bearer ${token}` },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(data.error || "Failed to update notification.");
+        return;
+      }
+
+      setNotifications((prev) =>
+        prev.map((n) =>
+          n.Notification_ID === Notification_ID
+            ? { ...n, is_read: is_read ? 0 : 1 }
+            : n
+        )
+      );
+    } catch (err) {
+      console.error("Unable to update notification.", err);
+    }
   };
 
-  const handleMarkAllAsRead = () => {
-    setNotifications((prev) =>
-      prev.map((notification) => ({
-        ...notification,
-        is_read: 1,
-      }))
-    );
+  const handleMarkAllAsRead = async () => {
+    try {
+      const response = await apiFetch("/api/notifications/read-all", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
 
-    // Later:
-    // await apiFetch(`/api/notifications/read-all/${personId}`, {
-    //   method: "PATCH",
-    //   headers: { Authorization: `Bearer ${token}` },
-    // });
+      const data = await response.json();
+
+      if (!response.ok) {
+        console.error(data.error || "Failed to mark all notifications as read.");
+        return;
+      }
+
+      setNotifications((prev) =>
+        prev.map((notification) => ({
+          ...notification,
+          is_read: 1,
+        }))
+      );
+    } catch (err) {
+      console.error("Unable to mark all notifications as read.", err);
+    }
   };
 
   if (loading) {
@@ -208,15 +217,14 @@ export default function NotificationsPage() {
 
                   <div>
                     <button
-                      onClick={() => handleMarkAsRead(notification.Notification_ID)}
-                      disabled={notification.is_read}
+                      onClick={() => handleToggleRead(notification)}
                       className={`px-4 py-2 rounded-lg font-semibold ${
                         notification.is_read
-                          ? "bg-gray-300 text-gray-500 cursor-not-allowed"
+                          ? "bg-white border border-gray-400 text-gray-600 hover:bg-gray-100"
                           : "bg-white border border-green-900 text-green-900 hover:bg-green-100"
                       }`}
                     >
-                      {notification.is_read ? "Read" : "Mark as Read"}
+                      {notification.is_read ? "Mark as Unread" : "Mark as Read"}
                     </button>
                   </div>
                 </div>

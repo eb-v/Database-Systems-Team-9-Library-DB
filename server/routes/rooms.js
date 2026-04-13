@@ -387,6 +387,13 @@ async function updateRoomStatus(req, res) {
                     [roomId, new Date()]
                 );
 
+                // fetch active reservations before cancelling so we can notify each person
+                const [activeReservations] = await conn.query(
+                    `SELECT Reservation_ID, Person_ID, start_time FROM RoomReservation
+                     WHERE Room_ID = ? AND reservation_status = 1`,
+                    [roomId]
+                );
+
                 // cancel remaining genuinely active reservations
                 const [cancelled] = await conn.query(
                     `UPDATE RoomReservation SET reservation_status = 0
@@ -394,6 +401,16 @@ async function updateRoomStatus(req, res) {
                     [roomId]
                 );
                 cancelledCount = cancelled.affectedRows;
+
+                // notify each affected person
+                for (const r of activeReservations) {
+                    const startStr = new Date(r.start_time).toLocaleString('en-US', { dateStyle: 'medium', timeStyle: 'short' });
+                    await conn.query(
+                        `INSERT INTO notification (Person_ID, type, message, is_read, created_at)
+                         VALUES (?, 4, ?, 0, NOW())`,
+                        [r.Person_ID, `Your room reservation on ${startStr} was cancelled because the room is no longer available.`]
+                    );
+                }
             }
 
             await conn.query(`UPDATE Room SET Room_status = ? WHERE Room_ID = ?`, [Room_status, roomId]);

@@ -32,12 +32,45 @@ export default function CustomerPage() {
       .finally(() => setFeaturedLoading(false));
   }, []);
 
+  const [summaryMessages, setSummaryMessages] = useState([]);
+  const [recentNotifications, setRecentNotifications] = useState([]);
+  const [loadingNotifications, setLoadingNotifications] = useState(true);
+
   const handleSearch = () => {
     const params = new URLSearchParams();
     if (query.trim()) params.set("search", query.trim());
     if (category !== "All") params.set("type", category === "Books" ? "1" : "2");
     navigate(`/catalog?${params.toString()}`);
   };
+
+  useEffect(() => {
+    const fetchNotificationSummary = async () => {
+      try {
+        const token = sessionStorage.getItem("token");
+
+        const res = await apiFetch("/api/notifications/summary", {
+          headers: {
+            Authorization: `Bearer ${token}`,
+          },
+        });
+
+        const data = await res.json();
+
+        if (res.ok) {
+          setSummaryMessages(data.summaryMessages || []);
+          setRecentNotifications(data.recentNotifications || []);
+        } else {
+          console.error(data.error || "Failed to load notification summary");
+        }
+      } catch (err) {
+        console.error("Notification summary fetch error:", err);
+      } finally {
+        setLoadingNotifications(false);
+      }
+    };
+
+    fetchNotificationSummary();
+  }, []);
 
   const customerCards = [
     {
@@ -64,26 +97,19 @@ export default function CustomerPage() {
     <div className="min-h-screen bg-gray-100">
       <NavigationBar />
 
-      {/*banner*/}
       <section className="relative">
         <div
           className="h-[380px] bg-cover bg-center flex items-center justify-center"
           style={{ backgroundImage: `url(${bannerImg})` }}
         >
-          {/*overlay*/}
           <div className="absolute inset-0 bg-black/40"></div>
 
-          {/*text*/}
           <div className="relative w-full max-w-4xl px-6 text-left">
-
             <h1 className="text-4xl font-bold text-white mb-6 drop-shadow">
               Search this library's catalog
             </h1>
 
-            {/*search bar*/}
             <div className="bg-white rounded-lg shadow-lg p-3 flex flex-col md:flex-row gap-3 items-center">
-
-              {/*drop down*/}
               <select
                 value={category}
                 onChange={(e) => setCategory(e.target.value)}
@@ -93,8 +119,7 @@ export default function CustomerPage() {
                 <option>Books</option>
                 <option>CDs</option>
               </select>
-              
-              {/*text inside search card*/}
+
               <input
                 type="text"
                 placeholder="Search the library..."
@@ -110,10 +135,55 @@ export default function CustomerPage() {
                 Search
               </button>
             </div>
-
           </div>
         </div>
       </section>
+
+
+      {!loadingNotifications && (summaryMessages.length > 0 || recentNotifications.length > 0) && (
+        <section className="max-w-6xl mx-auto px-6 pt-6">
+          <div className="bg-yellow-50 border border-yellow-300 rounded-xl shadow-sm p-5">
+            <h2 className="text-xl font-semibold text-yellow-900 mb-3">
+              Notifications
+            </h2>
+
+            {summaryMessages.length > 0 && (
+              <div className="mb-4">
+                <ul className="list-disc pl-5 text-gray-800">
+                  {summaryMessages.map((message, index) => (
+                    <li key={index}>{message}</li>
+                  ))}
+                </ul>
+              </div>
+            )}
+
+            {recentNotifications.length > 0 && (
+              <div>
+                <h3 className="font-medium text-gray-900 mb-2">Recent Updates</h3>
+                <div className="space-y-2">
+                  {recentNotifications.map((note) => (
+                    <div
+                      key={note.Notification_ID}
+                      className="bg-white border rounded-lg px-4 py-3"
+                    >
+                      <p className="text-sm text-gray-800">{note.message}</p>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            <div className="mt-4">
+              <button
+                onClick={() => navigate("/view-account")}
+                className="text-green-800 font-semibold hover:underline"
+              >
+                View all account notifications
+              </button>
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* Featured Items */}
       <section className="max-w-6xl mx-auto px-6 py-10 pb-0">
@@ -124,7 +194,6 @@ export default function CustomerPage() {
           <p className="text-sm text-gray-400 italic">Loading featured items...</p>
         ) : (
           <div className="space-y-8">
-
             {featuredBooks.length > 0 && (
               <div>
                 <div className="grid grid-cols-3 gap-4">
@@ -134,7 +203,6 @@ export default function CustomerPage() {
                 </div>
               </div>
             )}
-
           </div>
         )}
       </section>
@@ -148,10 +216,8 @@ export default function CustomerPage() {
               onClick={() => navigate(card.path)}
               className="relative bg-white rounded-xl shadow-md cursor-pointer transition hover:shadow-lg hover:scale-105 aspect-square p-3  mx-auto flex flex-col items-center justify-center text-center overflow-hidden border border-transparent hover:border-green-800"
             >
-              {/* dark overlay on hover */}
               <div className="absolute inset-0 bg-black opacity-0 hover:opacity-5 transition"></div>
 
-              {/* content */}
               <div className="relative z-10 flex flex-col items-center">
                 <div className="w-14 h-14 flex items-center justify-center mb-3">
                   <img

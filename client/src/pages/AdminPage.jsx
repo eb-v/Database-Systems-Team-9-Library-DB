@@ -14,6 +14,7 @@ import roomIcon from "../assets/room.png";
 import manageRoomIcon from "../assets/manageroom.png";
 import searchPeopleIcon from "../assets/searchpeople.png";
 import deviceIcon from "../assets/device.png";
+import notifIcon from "../assets/notif.png";
 import staffIcon from "../assets/staff.png";
 import reportIcon from "../assets/report.png";
 
@@ -26,6 +27,7 @@ export default function AdminPage() {
   const [, setMessage] = useState("");
   const [holds, setHolds] = useState([]);
   const [borrows, setBorrows] = useState([]);
+  const [unreadNotifCount, setUnreadNotifCount] = useState(0);
 
   if (!isAdmin) {
     return <Navigate to="/login" replace />;
@@ -70,17 +72,22 @@ export default function AdminPage() {
       try {
         const payload = JSON.parse(atob(token.split(".")[1]));
         const currentPersonId = payload.person_id;
-        const [holdsResponse, borrowsResponse] = await Promise.all([
+        const [holdsResponse, borrowsResponse, notifResponse] = await Promise.all([
           apiFetch(`/api/holds/${currentPersonId}`, { headers: { Authorization: `Bearer ${token}` } }),
           apiFetch(`/api/borrow/${currentPersonId}`, { headers: { Authorization: `Bearer ${token}` } }),
+          apiFetch("/api/notifications", { headers: { Authorization: `Bearer ${token}` } }),
         ]);
         const holdsData = await holdsResponse.json();
         const borrowsData = await borrowsResponse.json();
+        const notifData = await notifResponse.json();
         if (holdsResponse.ok) {
           setHolds(Array.isArray(holdsData) ? holdsData.filter((h) => h.hold_status === 1 || h.hold_status === 2) : []);
         }
         if (borrowsResponse.ok) {
           setBorrows(Array.isArray(borrowsData) ? borrowsData.filter((b) => b.Copy_status === 2) : []);
+        }
+        if (notifResponse.ok) {
+          setUnreadNotifCount(Array.isArray(notifData) ? notifData.filter((n) => !n.is_read).length : 0);
         }
       } catch (error) {
         console.error("Error fetching holds and borrows:", error);
@@ -100,6 +107,7 @@ export default function AdminPage() {
     { title: "Active Borrows", description: "View your checked out items.", icon: borrowIcon, path: "/my-borrows" },
     { title: "Pay Fees", description: "View and pay your outstanding fees.", icon: feeIcon, path: "/fees", showAlert: unpaidTotal > 0 },
     { title: "Personal Info", description: "View your account details.", icon: userIcon, path: "/my-profile" },
+    { title: "Notifications", description: "View your account notifications.", icon: notifIcon, path: "/notifications" },
   ];
 
   const adminToolCards = [
@@ -128,6 +136,7 @@ export default function AdminPage() {
                 holdsCount={holdsCount}
                 borrowsCount={borrowsCount}
                 unpaidTotal={unpaidTotal}
+                unreadNotifCount={unreadNotifCount}
               />
             ))}
           </div>
@@ -147,7 +156,7 @@ export default function AdminPage() {
   );
 }
 
-function DashboardCard({ card, onClick, holdsCount, borrowsCount, unpaidTotal }) {
+function DashboardCard({ card, onClick, holdsCount, borrowsCount, unpaidTotal, unreadNotifCount }) {
   return (
     <div
       onClick={onClick}
@@ -174,6 +183,12 @@ function DashboardCard({ card, onClick, holdsCount, borrowsCount, unpaidTotal })
         {card.title === "Pay Fees" && (
           <p className={`text-sm mt-2 font-semibold px-2 py-1 rounded-md ${unpaidTotal > 0 ? "text-red-700 bg-red-100" : "text-green-700 bg-green-100"}`}>
             {unpaidTotal > 0 ? `Balance: $${unpaidTotal.toFixed(2)}` : "No balance owed"}
+          </p>
+        )}
+
+        {card.title === "Notifications" && (
+          <p className={`text-sm mt-2 font-semibold px-2 py-1 rounded-md ${unreadNotifCount > 0 ? "bg-yellow-100 text-yellow-800" : "bg-green-100 text-green-700"}`}>
+            {unreadNotifCount > 0 ? `${unreadNotifCount} unread` : "All caught up"}
           </p>
         )}
       </div>

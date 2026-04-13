@@ -11,6 +11,7 @@ export default function MyProfilePage() {
   const [isEditing, setIsEditing] = useState(false);
   const [formData, setFormData] = useState(null);
   const [originalData, setOriginalData] = useState(null);
+  const [showDeactivateConfirm, setShowDeactivateConfirm] = useState(false);
 
   const token = sessionStorage.getItem("token");
   const personId = sessionStorage.getItem("personId");
@@ -24,15 +25,18 @@ export default function MyProfilePage() {
         const response = await apiFetch(`/api/users/lookup?searchBy=personId&value=${personId}`, {
           headers: { Authorization: `Bearer ${token}` },
         });
+
         const data = await response.json();
+
         if (!response.ok) {
           setError(data.error || "Failed to load profile.");
           return;
         }
+
         setPerson(data.person);
 
         const editableProfile = {
-          personId: data.person.personId || personId || "—",
+          personId: data.person.Person_ID || personId || "—",
           firstName: data.person.First_name || "",
           lastName: data.person.Last_name || "",
           username: data.person.username || "",
@@ -47,13 +51,13 @@ export default function MyProfilePage() {
 
         setFormData(editableProfile);
         setOriginalData(editableProfile);
-
       } catch (err) {
         setError("Unable to connect to the server.");
       } finally {
         setLoading(false);
       }
     };
+
     fetchProfile();
   }, [personId, token]);
 
@@ -62,8 +66,8 @@ export default function MyProfilePage() {
     return new Date(dateStr.slice(0, 10) + 'T00:00:00').toLocaleDateString();
   };
 
-  const getAccountStatus = (status) => status === 1 ? "Active" : "Disabled";
-  const getBorrowStatus = (status) => status === 1 ? "Allowed" : "Restricted";
+  const getAccountStatus = (status) => (status === 1 ? "Active" : "Disabled");
+  const getBorrowStatus = (status) => (status === 1 ? "Allowed" : "Restricted");
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -80,12 +84,13 @@ export default function MyProfilePage() {
   const handleCancel = () => {
     setFormData(originalData);
     setIsEditing(false);
+    setError("");
   };
 
   const handleSave = async () => {
     try {
-      // Future backend connection goes here
-      // Example payload: only editable fields
+      setError("");
+
       const updatedProfile = {
         firstName: formData.firstName,
         lastName: formData.lastName,
@@ -97,7 +102,21 @@ export default function MyProfilePage() {
         zipCode: formData.zipCode,
       };
 
-      console.log("Saving profile:", updatedProfile);
+      const response = await apiFetch("/api/users/profile", {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify(updatedProfile),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Failed to save profile changes.");
+        return;
+      }
 
       setOriginalData(formData);
       setPerson((prev) => ({
@@ -117,10 +136,50 @@ export default function MyProfilePage() {
     }
   };
 
-  if (loading) return <div className="min-h-screen bg-gray-100"><NavigationBar /><p className="p-8 text-gray-600">Loading...</p></div>;
-  if (error) return <div className="min-h-screen bg-gray-100"><NavigationBar /><p className="p-8 text-red-600">{error}</p></div>;
+  const handleDeactivateAccount = async () => {
+    try {
+      setError("");
 
-return (
+      const response = await apiFetch("/api/users/deactivate", {
+        method: "PUT",
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setError(data.error || "Failed to deactivate account.");
+        return;
+      }
+
+      sessionStorage.clear();
+      navigate("/login");
+    } catch (err) {
+      setError("Failed to deactivate account.");
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <NavigationBar />
+        <p className="p-8 text-gray-600">Loading...</p>
+      </div>
+    );
+  }
+
+  if (!formData) {
+    return (
+      <div className="min-h-screen bg-gray-100">
+        <NavigationBar />
+        <p className="p-8 text-red-600">Unable to load profile.</p>
+      </div>
+    );
+  }
+
+  return (
     <div className="min-h-screen bg-gray-100">
       <NavigationBar />
 
@@ -161,6 +220,12 @@ return (
         </div>
 
         <p className="text-gray-600 mb-8">Your account details.</p>
+
+        {error && (
+          <div className="mb-6 rounded-lg border border-red-300 bg-red-50 px-4 py-3 text-red-700">
+            {error}
+          </div>
+        )}
 
         <div className="bg-white rounded-2xl shadow-md p-8 space-y-5">
           <LockedField label="Person ID" value={formData.personId || "—"} />
@@ -243,55 +308,92 @@ return (
             label="Borrow Status"
             value={getBorrowStatus(formData.borrowStatus)}
           />
+
+          <div className="pt-6 border-t border-gray-200">
+            <button
+              onClick={() => setShowDeactivateConfirm(true)}
+              className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700"
+            >
+              Deactivate My Account
+            </button>
+          </div>
         </div>
       </div>
+
+      {showDeactivateConfirm && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
+          <div className="bg-white rounded-2xl shadow-xl max-w-md w-full mx-4 p-6">
+            <h2 className="text-xl font-bold text-red-700 mb-2">Deactivate Account</h2>
+            <p className="text-gray-700 mb-6">
+              Are you sure you want to deactivate your account? This action cannot be undone.
+            </p>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => setShowDeactivateConfirm(false)}
+                className="bg-gray-200 text-gray-800 px-4 py-2 rounded-lg font-semibold hover:bg-gray-300"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={() => {
+                  setShowDeactivateConfirm(false);
+                  handleDeactivateAccount();
+                }}
+                className="bg-red-600 text-white px-4 py-2 rounded-lg font-semibold hover:bg-red-700"
+              >
+                Yes, Deactivate
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
 
 function EditableField({
-    label,
-    name,
-    value,
-    onChange,
-    isEditing,
-    type = "text",
-    maxLength,
-    displayValue,
-  }) {
-    return (
-      <div className="flex flex-col gap-1">
-        <p className="text-xs font-semibold text-green-800 uppercase tracking-wide">
-          {label}
-        </p>
+  label,
+  name,
+  value,
+  onChange,
+  isEditing,
+  type = "text",
+  maxLength,
+  displayValue,
+}) {
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-xs font-semibold text-green-800 uppercase tracking-wide">
+        {label}
+      </p>
 
-        {isEditing ? (
-          <input
-            type={type}
-            name={name}
-            value={value || ""}
-            onChange={onChange}
-            maxLength={maxLength}
-            className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-700"
-          />
-        ) : (
-          <p className="text-gray-800 border-b border-gray-100 pb-2">
-            {displayValue || value || "—"}
-          </p>
-        )}
-      </div>
-    );
-  }
+      {isEditing ? (
+        <input
+          type={type}
+          name={name}
+          value={value || ""}
+          onChange={onChange}
+          maxLength={maxLength}
+          className="w-full rounded-lg border border-gray-300 px-3 py-2 text-gray-800 focus:outline-none focus:ring-2 focus:ring-green-700"
+        />
+      ) : (
+        <p className="text-gray-800 border-b border-gray-100 pb-2">
+          {displayValue || value || "—"}
+        </p>
+      )}
+    </div>
+  );
+}
 
-  function LockedField({ label, value }) {
-    return (
-      <div className="flex flex-col gap-1">
-        <p className="text-xs font-semibold text-green-800 uppercase tracking-wide">
-          {label}
-        </p>
-        <p className="text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
-          {value}
-        </p>
-      </div>
-    );
-  }
+function LockedField({ label, value }) {
+  return (
+    <div className="flex flex-col gap-1">
+      <p className="text-xs font-semibold text-green-800 uppercase tracking-wide">
+        {label}
+      </p>
+      <p className="text-gray-500 bg-gray-50 border border-gray-200 rounded-lg px-3 py-2">
+        {value}
+      </p>
+    </div>
+  );
+}

@@ -108,24 +108,28 @@ async function borrowItem(req, res) {
             let patronHold = null;
 
             if (activeHolds.length > 0) {
-                // holds exist — patron must be first in the item queue
                 patronHold = activeHolds.find(
                     h => parseInt(h.Person_ID) === parseInt(person_id) &&
                          (h.hold_status === 2 || h.queue_status === 0)
                 );
-                if (!patronHold) {
-                    res.writeHead(403);
-                    return res.end(JSON.stringify({ error: 'This item has active holds. You must be first in the hold queue to check it out.' }));
-                }
 
-                if (patronHold.hold_status === 2) {
-                    // Ready hold — use the specific copy already assigned to them
-                    copy_id = patronHold.Copy_ID;
+                if (patronHold) {
+                    if (patronHold.hold_status === 2) {
+                        // Ready hold — use the specific copy already assigned to them
+                        copy_id = patronHold.Copy_ID;
+                    } else {
+                        // Waiting but first in queue — grab any available copy
+                        if (availableCopies.length === 0) {
+                            res.writeHead(400);
+                            return res.end(JSON.stringify({ error: 'No copies currently available' }));
+                        }
+                        copy_id = availableCopies[0].Copy_ID;
+                    }
                 } else {
-                    // Waiting but first in queue — grab any available copy
+                    // patron is not in the hold queue — only block if no free copies remain
                     if (availableCopies.length === 0) {
-                        res.writeHead(400);
-                        return res.end(JSON.stringify({ error: 'No copies currently available' }));
+                        res.writeHead(403);
+                        return res.end(JSON.stringify({ error: 'This item has active holds and no free copies are available.' }));
                     }
                     copy_id = availableCopies[0].Copy_ID;
                 }
@@ -212,12 +216,13 @@ async function returnItem(req, res) {
 
     req.on('data', chunk => body += chunk);
     req.on('end', async () => {
+        const conn = await db.getConnection();
         try {
             const { borrowedItem_id, damaged, lost } = JSON.parse(body);
 
             // step 1 — look up the borrowed item record
-            const [borrowRows] = await db.query(
-                `SELECT bi.BorrowedItem_ID, bi.returnBy_date, bi.Copy_ID, bi.Person_ID, i.Item_type, cp.Copy_status
+            const [borrowRows] = await conn.query(
+                `SELECT bi.BorrowedItem_ID, bi.returnBy_date, bi.Copy_ID, bi.Person_ID, i.Item_type, i.Item_name, cp.Copy_status
                  FROM BorrowedItem bi
                  JOIN Copy cp ON bi.Copy_ID = cp.Copy_ID
                  JOIN Item i ON cp.Item_ID = i.Item_ID
@@ -246,6 +251,8 @@ async function returnItem(req, res) {
                 return res.end(JSON.stringify({ error: 'This item has already been returned' }));
             }
 
+            await conn.beginTransaction();
+
             const today = new Date();
             const returnByDate = new Date(record.returnBy_date);
 
@@ -254,35 +261,69 @@ async function returnItem(req, res) {
 
             if (isLate) {
                 const lateFee = ITEM_FEE_POLICY[record.Item_type]?.late || 5.0;
-                await db.query(
+                const [lateFeeResult] = await conn.query(
                     `INSERT INTO FeeOwed (date_owed, status, fee_amount, fee_type, Person_ID, BorrowedItem_ID)
                      VALUES (?, 1, ?, 1, ?, ?)`,
                     [formatDate(today), lateFee, record.Person_ID, borrowedItem_id]
+                );
+                await conn.query(
+                    `INSERT INTO notification (Person_ID, type, message, is_read, created_at, Fine_ID)
+                     VALUES (?, 2, ?, 0, NOW(), ?)`,
+                    [record.Person_ID, `A late fee of $${lateFee.toFixed(2)} has been added to your account for "${record.Item_name}".`, lateFeeResult.insertId]
                 );
             }
 
             if (damaged) {
                 const damageFee = ITEM_FEE_POLICY[record.Item_type]?.damage || 25.0;
-                await db.query(
+                const [damageFeeResult] = await conn.query(
                     `INSERT INTO FeeOwed (date_owed, status, fee_amount, fee_type, Person_ID, BorrowedItem_ID)
                      VALUES (?, 1, ?, 2, ?, ?)`,
                     [formatDate(today), damageFee, record.Person_ID, borrowedItem_id]
+                );
+                await conn.query(
+                    `INSERT INTO notification (Person_ID, type, message, is_read, created_at, Fine_ID)
+                     VALUES (?, 2, ?, 0, NOW(), ?)`,
+                    [record.Person_ID, `A damage fee of $${damageFee.toFixed(2)} has been added to your account for "${record.Item_name}".`, damageFeeResult.insertId]
                 );
             }
 
             if (lost) {
                 const lossFee = ITEM_FEE_POLICY[record.Item_type]?.loss || 30.0;
-                await db.query(
+                const [lossFeeResult] = await conn.query(
                     `INSERT INTO FeeOwed (date_owed, status, fee_amount, fee_type, Person_ID, BorrowedItem_ID)
                      VALUES (?, 1, ?, 3, ?, ?)`,
                     [formatDate(today), lossFee, record.Person_ID, borrowedItem_id]
+                );
+                await conn.query(
+                    `INSERT INTO notification (Person_ID, type, message, is_read, created_at, Fine_ID)
+                     VALUES (?, 2, ?, 0, NOW(), ?)`,
+                    [record.Person_ID, `A loss fee of $${lossFee.toFixed(2)} has been added to your account for "${record.Item_name}".`, lossFeeResult.insertId]
                 );
             }
 
             // step 3 — update copy status
             // if returned normally (status=1), promote_next_hold trigger fires automatically
             const newCopyStatus = lost ? 3 : damaged ? 4 : 1;
-            await db.query(`UPDATE Copy SET Copy_status = ? WHERE Copy_ID = ?`, [newCopyStatus, record.Copy_ID]);
+            await conn.query(`UPDATE Copy SET Copy_status = ? WHERE Copy_ID = ?`, [newCopyStatus, record.Copy_ID]);
+
+            // step 4 — if copy became available, notify whoever was just promoted to ready
+            if (newCopyStatus === 1) {
+                const [promoted] = await conn.query(
+                    `SELECT h.Hold_ID, h.Person_ID FROM HoldItem h
+                     JOIN Copy c ON h.Copy_ID = c.Copy_ID
+                     WHERE c.Item_ID = (SELECT Item_ID FROM Copy WHERE Copy_ID = ?) AND h.hold_status = 2 AND h.Copy_ID = ?`,
+                    [record.Copy_ID, record.Copy_ID]
+                );
+                if (promoted.length > 0) {
+                    await conn.query(
+                        `INSERT INTO notification (Person_ID, type, message, is_read, created_at, Hold_ID)
+                         VALUES (?, 3, ?, 0, NOW(), ?)`,
+                        [promoted[0].Person_ID, `Your hold for "${record.Item_name}" is ready for pickup. Please pick it up within 2 days.`, promoted[0].Hold_ID]
+                    );
+                }
+            }
+
+            await conn.commit();
 
             res.writeHead(200);
             res.end(JSON.stringify({
@@ -297,8 +338,11 @@ async function returnItem(req, res) {
                 }
             }));
         } catch (err) {
+            await conn.rollback();
             res.writeHead(500);
             res.end(JSON.stringify({ error: 'Failed to return item', details: err.message }));
+        } finally {
+            conn.release();
         }
     });
 }
