@@ -30,7 +30,7 @@ async function getNotificationSummary(req, res) {
         const [notificationRows] = await db.query(
             `SELECT Notification_ID, type, message, is_read, created_at
              FROM notification
-             WHERE Person_ID = ?
+             WHERE Person_ID = ? AND is_read = 0
              ORDER BY created_at DESC
              LIMIT 5`,
             [personId]
