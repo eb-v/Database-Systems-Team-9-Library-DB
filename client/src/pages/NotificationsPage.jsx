@@ -50,12 +50,12 @@ export default function NotificationsPage() {
 
   const getNotificationType = (type) => {
     switch (type) {
-      case "hold_ready":
-        return "Hold Ready";
-      case "fee":
+      case 2:
         return "Fee Update";
-      case "reminder":
-        return "Reminder";
+      case 3:
+        return "Hold Ready";
+      case 4:
+        return "Reservation Cancelled";
       default:
         return "Notification";
     }
