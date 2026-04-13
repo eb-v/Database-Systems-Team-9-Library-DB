@@ -119,7 +119,7 @@ export default function ItemDetailPage() {
               <p><span className="font-semibold">Author:</span> {item.author_firstName} {item.author_lastName}</p>
               <p><span className="font-semibold">Publisher:</span> {item.publisher || "—"}</p>
               <p><span className="font-semibold">Language:</span> {item.language == 1 ? "English" : item.language == 2 ? "Spanish" : "—"}</p>
-              <p><span className="font-semibold">Year Published:</span> {item.year_published ? new Date(item.year_published).getFullYear() : "—"}</p>
+              <p><span className="font-semibold">Year Published:</span> {item.year_published ? String(item.year_published).slice(0, 4) : "—"}</p>
               <p><span className="font-semibold">Genre:</span> {item.book_genre || "—"}</p>
             </div>
           )}
