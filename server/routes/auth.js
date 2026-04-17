@@ -9,7 +9,17 @@ async function register(req, res) {
 
     req.on('end', async () => {
         try {
-            const { first_name, last_name, email, username, password, phone_number, birthday } = JSON.parse(body);
+            const {
+                first_name,
+                last_name,
+                email,
+                username,
+                password,
+                phone_number,
+                birthday,
+                street_address,
+                zip_code
+            } = JSON.parse(body);
 
             const hashedPassword = await bcrypt.hash(password, 10);
 
@@ -24,24 +34,43 @@ async function register(req, res) {
                     phone_number,
                     birthday,
                     account_status,
-                    borrow_status
+                    borrow_status,
+                    street_address,
+                    zip_code
                 )
-                 VALUES (?, ?, ?, ?, ?, 2, ?, ?, 1, 1)`,
-                [first_name, last_name, email, username, hashedPassword, phone_number, birthday]
+                VALUES (?, ?, ?, ?, ?, 2, ?, ?, 1, 1, ?, ?)`,
+                [
+                    first_name,
+                    last_name,
+                    email,
+                    username,
+                    hashedPassword,
+                    phone_number || null,
+                    birthday || null,
+                    street_address || null,
+                    zip_code || null
+                ]
             );
 
             const personId = result.insertId;
 
             await db.query(
-                `INSERT INTO User (Person_ID, User_permissions) VALUES (?, 1)`,
+                `INSERT INTO User (Person_ID, User_permissions)
+                 VALUES (?, 1)`,
                 [personId]
             );
 
             res.writeHead(201);
-            res.end(JSON.stringify({ message: 'User registered successfully' }));
+            res.end(JSON.stringify({
+                message: 'User registered successfully'
+            }));
+
         } catch (err) {
             res.writeHead(500);
-            res.end(JSON.stringify({ error: 'Registration failed', details: err.message }));
+            res.end(JSON.stringify({
+                error: 'Registration failed',
+                details: err.message
+            }));
         }
     });
 }
