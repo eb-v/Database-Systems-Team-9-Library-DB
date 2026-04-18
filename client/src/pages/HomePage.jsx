@@ -54,7 +54,7 @@ export default function HomePage() {
       </div>
 
       <div className="flex-1 flex flex-col">
-          <section className="relative">
+          <section className="relative border-t-4 border-green-900">
             <div
               className="h-[720px] bg-cover bg-center flex items-center"
               style={{ backgroundImage: `url(${bannerImg})` }}
@@ -83,7 +83,7 @@ export default function HomePage() {
                 <div
                   key={card.title}
                   onClick={() => handleProtectedNavigation(card.path)}
-                  className={`bg-white cursor-pointer transition hover:bg-green-50 flex flex-col items-center justify-center text-center px-6 py-14 min-h-[220px] border-t-4 border-green-700 ${
+                  className={`bg-white cursor-pointer transition hover:bg-green-50 flex flex-col items-center justify-center text-center px-6 py-14 min-h-[220px] border-t-4 border-green-900 ${
                     index !== guestCards.length - 1 ? "md:border-r border-gray-200" : ""
                   }`}
                 >
