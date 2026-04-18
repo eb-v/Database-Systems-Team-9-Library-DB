@@ -2,7 +2,7 @@ export default function Footer() {
 
   return (
     <footer className="bg-green-900 text-white">
-        <div className="max-w-5xl mx-auto px-8 py-16 grid grid-cols-1 md:grid-cols-3 gap-10 text-center md:text-left">
+        <div className="max-w-5xl mx-auto px-8 py-10 grid grid-cols-1 md:grid-cols-3 gap-6 text-center md:text-left">
         {/* About */}
         <div className="space-y-4">
             <h3 className="text-lg font-semibold">

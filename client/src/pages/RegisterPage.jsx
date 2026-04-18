@@ -12,12 +12,22 @@ export default function RegisterPage() {
     password: "",
     phone_number: "",
     birthday: "",
+    street_address: "",
+    zip_code: "",
   });
-  const [message, setMessage] = useState({ text: "", success: true });
+
+  const [message, setMessage] = useState({
+    text: "",
+    success: true,
+  });
+
   const navigate = useNavigate();
 
   const handleChange = (e) => {
-    setForm({ ...form, [e.target.name]: e.target.value });
+    setForm({
+      ...form,
+      [e.target.name]: e.target.value,
+    });
   };
 
   const handleSubmit = async (e) => {
@@ -27,21 +37,28 @@ export default function RegisterPage() {
     try {
       const response = await apiFetch("/api/auth/register", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
+        headers: {
+          "Content-Type": "application/json",
+        },
         body: JSON.stringify(form),
       });
 
       const data = await response.json();
 
       if (!response.ok) {
-        setMessage({ text: data.error || "Registration failed.", success: false });
+        setMessage({
+          text: data.error || "Registration failed.",
+          success: false,
+        });
         return;
       }
 
       navigate("/login");
     } catch (error) {
-      console.error(error);
-      setMessage({ text: "Unable to connect to the server.", success: false });
+      setMessage({
+        text: "Unable to connect to the server.",
+        success: false,
+      });
     }
   };
 
@@ -50,14 +67,21 @@ export default function RegisterPage() {
       <div className="w-full max-w-md bg-white rounded-2xl shadow-xl p-8">
 
         <div className="text-center mb-6">
-          <h1 className="text-3xl font-bold text-green-900">Library Database</h1>
-          <p className="text-sm text-gray-600 mt-2">Create a new account</p>
+          <h1 className="text-3xl font-bold text-green-900">
+            Library Database
+          </h1>
+          <p className="text-sm text-gray-600 mt-2">
+            Create a new account
+          </p>
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-4">
+
           <div className="flex gap-4">
             <div className="flex-1">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">First Name</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                First Name
+              </label>
               <input
                 type="text"
                 name="first_name"
@@ -66,8 +90,11 @@ export default function RegisterPage() {
                 className="w-full border border-gray-300 rounded-xl px-4 py-3"
               />
             </div>
+
             <div className="flex-1">
-              <label className="block text-sm font-semibold text-gray-700 mb-2">Last Name</label>
+              <label className="block text-sm font-semibold text-gray-700 mb-2">
+                Last Name
+              </label>
               <input
                 type="text"
                 name="last_name"
@@ -79,7 +106,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Email</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Email
+            </label>
             <input
               type="email"
               name="email"
@@ -90,7 +119,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Username</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Username
+            </label>
             <input
               type="text"
               name="username"
@@ -101,7 +132,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Password</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Password
+            </label>
             <input
               type="password"
               name="password"
@@ -112,7 +145,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Phone Number</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Phone Number
+            </label>
             <input
               type="text"
               name="phone_number"
@@ -123,7 +158,9 @@ export default function RegisterPage() {
           </div>
 
           <div>
-            <label className="block text-sm font-semibold text-gray-700 mb-2">Birthday</label>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Birthday
+            </label>
             <input
               type="date"
               name="birthday"
@@ -133,12 +170,42 @@ export default function RegisterPage() {
             />
           </div>
 
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Street Address
+            </label>
+            <input
+              type="text"
+              name="street_address"
+              value={form.street_address}
+              onChange={handleChange}
+              className="w-full border border-gray-300 rounded-xl px-4 py-3"
+            />
+          </div>
+
+          <div>
+            <label className="block text-sm font-semibold text-gray-700 mb-2">
+              Zip Code
+            </label>
+            <input
+              type="text"
+              name="zip_code"
+              value={form.zip_code}
+              onChange={handleChange}
+              maxLength="5"
+              className="w-full border border-gray-300 rounded-xl px-4 py-3"
+            />
+          </div>
+
           <button className="w-full bg-green-900 text-white py-3 rounded-xl font-semibold hover:bg-green-800">
             Register
           </button>
         </form>
 
-        <Banner message={message} onDismiss={() => setMessage({ text: "", success: true })} />
+        <Banner
+          message={message}
+          onDismiss={() => setMessage({ text: "", success: true })}
+        />
 
         <p className="text-center text-sm text-gray-600 mt-4">
           Already have an account?{" "}

@@ -3,7 +3,7 @@ import Footer from "../components/Footer";
 import roomIcon from "../assets/room.png";
 import deviceIcon from "../assets/device.png";
 import browseIcon from "../assets/browse.png";
-import bannerImg from "../assets/lib.png";
+import bannerImg from "../assets/library stock photo.jpeg";
 
 export default function HomePage() {
   const navigate = useNavigate();
@@ -53,8 +53,8 @@ export default function HomePage() {
         </div>
       </div>
 
-      <div className="flex-1">
-          <section className="relative">
+      <div className="flex-1 flex flex-col">
+          <section className="relative border-t-4 border-green-900">
             <div
               className="h-[720px] bg-cover bg-center flex items-center"
               style={{ backgroundImage: `url(${bannerImg})` }}
@@ -77,13 +77,13 @@ export default function HomePage() {
             </div>
           </section>
 
-          <section className="-mt-3 relative z-10 w-full">
+          <section className="-mt-3 relative z-10 w-full flex-1 flex flex-col justify-end">
             <div className="grid grid-cols-1 md:grid-cols-3 gap-0 shadow-lg rounded-none overflow-hidden">
               {guestCards.map((card, index) => (
                 <div
                   key={card.title}
                   onClick={() => handleProtectedNavigation(card.path)}
-                  className={`bg-white cursor-pointer transition hover:bg-green-50 flex flex-col items-center justify-center text-center px-6 py-8 min-h-[140px] border-t-4 border-green-700 ${
+                  className={`bg-white cursor-pointer transition hover:bg-green-50 flex flex-col items-center justify-center text-center px-6 py-14 min-h-[220px] border-t-4 border-green-900 ${
                     index !== guestCards.length - 1 ? "md:border-r border-gray-200" : ""
                   }`}
                 >

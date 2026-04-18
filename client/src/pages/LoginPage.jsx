@@ -79,7 +79,7 @@ export default function LoginPage() {
 
         <div className="text-center mb-6">
           <h1 className="text-3xl font-bold text-green-900">
-            Library Database
+            ReadMore Library
           </h1>
           <p className="text-sm text-gray-600 mt-2">
             Sign in to access your account

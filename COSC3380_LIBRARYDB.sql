@@ -57,14 +57,17 @@ CREATE TABLE IF NOT EXISTS Person (
   Person_ID       INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
   First_name      VARCHAR(50) NOT NULL,
   Last_name       VARCHAR(50) NOT NULL,
-  email           VARCHAR(50) ,
-  username        VARCHAR(50) ,
-  password        VARCHAR(255) ,
+  email           VARCHAR(50),
+  username        VARCHAR(50),
+  password        VARCHAR(255),
   role            SMALLINT NOT NULL,
-  phone_number    VARCHAR(20) ,
+  phone_number    VARCHAR(20),
   birthday        DATE,
   account_status  SMALLINT,
-  borrow_status   SMALLINT
+  borrow_status   SMALLINT,
+  signup_date     DATE,
+  street_address  VARCHAR(255),
+  zip_code        VARCHAR(10)
 );
 
 CREATE TABLE IF NOT EXISTS Staff (
@@ -145,64 +148,103 @@ CREATE TABLE IF NOT EXISTS FeePayment (
   FOREIGN KEY (Fine_ID) REFERENCES FeeOwed(Fine_ID)
 );
 
-CREATE TABLE IF NOT EXISTS Notification (
-  Notification_ID  INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
-  Person_ID        INT NOT NULL,
-  type             SMALLINT NOT NULL,
-  message          VARCHAR(255) NOT NULL,
-  is_read          TINYINT(1) NOT NULL DEFAULT 0,
-  created_at       DATETIME NOT NULL,
-  Fine_ID          INT DEFAULT NULL,
-  Hold_ID          INT DEFAULT NULL,
-  KEY (Person_ID),
-  KEY (Fine_ID),
-  KEY (Hold_ID),
+CREATE TABLE IF NOT EXISTS notification (
+  Notification_ID INT PRIMARY KEY NOT NULL AUTO_INCREMENT,
+  Person_ID       INT NOT NULL,
+  type            SMALLINT NOT NULL,
+  message         VARCHAR(255) NOT NULL,
+  is_read         TINYINT(1) NOT NULL DEFAULT 0,
+  created_at      DATETIME NOT NULL,
+  Fine_ID         INT,
+  Hold_ID         INT,
   FOREIGN KEY (Person_ID) REFERENCES Person(Person_ID),
   FOREIGN KEY (Fine_ID) REFERENCES FeeOwed(Fine_ID),
   FOREIGN KEY (Hold_ID) REFERENCES HoldItem(Hold_ID)
 );
 
-
-DELIMITER //
-
+DELIMITER $$
 CREATE TRIGGER restrict_borrow_on_fee
 AFTER INSERT ON FeeOwed
 FOR EACH ROW
 BEGIN
-  IF NEW.status = 1 THEN
-    UPDATE Person
-    SET borrow_status = 0
-    WHERE Person_ID = NEW.Person_ID;
-  END IF;
-END //
+    IF NEW.status = 1 THEN
+        UPDATE Person
+        SET borrow_status = 0
+        WHERE Person_ID = NEW.Person_ID;
 
-CREATE TRIGGER unrestrict_borrow_on_payment
+        INSERT INTO notification (
+            Person_ID,
+            type,
+            message,
+            is_read,
+            created_at,
+            Fine_ID
+        )
+        VALUES (
+            NEW.Person_ID,
+            2,
+            CONCAT(
+                'A new fee of $',
+                FORMAT(NEW.fee_amount, 2),
+                ' has been added to your account. Your borrowing privileges have been restricted until the fee is resolved.'
+            ),
+            0,
+            NOW(),
+            NEW.Fine_ID
+        );
+    END IF;
+END$$
+
+
+CREATE TRIGGER unrestrict_borrow_on_paid
 AFTER UPDATE ON FeeOwed
 FOR EACH ROW
 BEGIN
-  DECLARE unpaid_count INT;
+    DECLARE unpaid_count INT DEFAULT 0;
 
-  IF NEW.status = 2 AND OLD.status = 1 THEN
-    SELECT COUNT(*) INTO unpaid_count
-    FROM FeeOwed
-    WHERE Person_ID = NEW.Person_ID AND status = 1;
+    IF OLD.status = 1 AND NEW.status = 2 THEN
+        SELECT COUNT(*)
+        INTO unpaid_count
+        FROM FeeOwed
+        WHERE Person_ID = NEW.Person_ID
+          AND status = 1;
 
-    IF unpaid_count = 0 THEN
-      UPDATE Person
-      SET borrow_status = 1
-      WHERE Person_ID = NEW.Person_ID;
+        IF unpaid_count = 0 THEN
+            UPDATE Person
+            SET borrow_status = 1
+            WHERE Person_ID = NEW.Person_ID;
+
+            INSERT INTO notification (
+                Person_ID,
+                type,
+                message,
+                is_read,
+                created_at,
+                Fine_ID
+            )
+            VALUES (
+                NEW.Person_ID,
+                2,
+                'Your fees have been resolved. Your borrowing privileges have been restored.',
+                0,
+                NOW(),
+                NEW.Fine_ID
+            );
+        END IF;
     END IF;
-  END IF;
-END //
+END$$
+
 
 CREATE TRIGGER promote_next_hold
 AFTER UPDATE ON Copy
 FOR EACH ROW
 BEGIN
   DECLARE next_hold_id INT;
+  DECLARE next_person_id INT;
+  DECLARE item_name_val VARCHAR(255);
 
   IF NEW.Copy_status = 1 AND OLD.Copy_status <> 1 THEN
-    SELECT h.Hold_ID INTO next_hold_id
+    SELECT h.Hold_ID, h.Person_ID INTO next_hold_id, next_person_id
     FROM HoldItem h
     JOIN Copy c ON h.Copy_ID = c.Copy_ID
     WHERE c.Item_ID = NEW.Item_ID
@@ -216,9 +258,15 @@ BEGIN
           expiry_date = DATE_ADD(CURDATE(), INTERVAL 2 DAY),
           Copy_ID = NEW.Copy_ID
       WHERE Hold_ID = next_hold_id;
+
+      SELECT Item_name INTO item_name_val FROM Item WHERE Item_ID = NEW.Item_ID;
+
+      INSERT INTO notification (Person_ID, type, message, is_read, created_at, Hold_ID)
+      VALUES (next_person_id, 1, CONCAT('Your hold for "', item_name_val, '" is ready for pickup. Please pick it up within 2 days.'), 0, NOW(), next_hold_id);
     END IF;
   END IF;
-END //
+END $$
+
 
 DELIMITER ;
 

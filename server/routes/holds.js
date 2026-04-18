@@ -49,7 +49,7 @@ async function cleanupExpiredHolds() {
             const itemName = itemRow[0]?.Item_name || 'your item';
             await db.query(
                 `INSERT INTO notification (Person_ID, type, message, is_read, created_at, Hold_ID)
-                 VALUES (?, 'hold_ready', ?, 0, NOW(), ?)`,
+                 VALUES (?, 1, ?, 0, NOW(), ?)`,
                 [nextHold[0].Person_ID, `Your hold for "${itemName}" is ready for pickup. Please pick it up within 2 days.`, nextHold[0].Hold_ID]
             );
         }

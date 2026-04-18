@@ -261,43 +261,28 @@ async function returnItem(req, res) {
 
             if (isLate) {
                 const lateFee = ITEM_FEE_POLICY[record.Item_type]?.late || 5.0;
-                const [lateFeeResult] = await conn.query(
+                await conn.query(
                     `INSERT INTO FeeOwed (date_owed, status, fee_amount, fee_type, Person_ID, BorrowedItem_ID)
                      VALUES (?, 1, ?, 1, ?, ?)`,
                     [formatDate(today), lateFee, record.Person_ID, borrowedItem_id]
-                );
-                await conn.query(
-                    `INSERT INTO notification (Person_ID, type, message, is_read, created_at, Fine_ID)
-                     VALUES (?, 2, ?, 0, NOW(), ?)`,
-                    [record.Person_ID, `A late fee of $${lateFee.toFixed(2)} has been added to your account for "${record.Item_name}".`, lateFeeResult.insertId]
                 );
             }
 
             if (damaged) {
                 const damageFee = ITEM_FEE_POLICY[record.Item_type]?.damage || 25.0;
-                const [damageFeeResult] = await conn.query(
+                await conn.query(
                     `INSERT INTO FeeOwed (date_owed, status, fee_amount, fee_type, Person_ID, BorrowedItem_ID)
                      VALUES (?, 1, ?, 2, ?, ?)`,
                     [formatDate(today), damageFee, record.Person_ID, borrowedItem_id]
-                );
-                await conn.query(
-                    `INSERT INTO notification (Person_ID, type, message, is_read, created_at, Fine_ID)
-                     VALUES (?, 2, ?, 0, NOW(), ?)`,
-                    [record.Person_ID, `A damage fee of $${damageFee.toFixed(2)} has been added to your account for "${record.Item_name}".`, damageFeeResult.insertId]
                 );
             }
 
             if (lost) {
                 const lossFee = ITEM_FEE_POLICY[record.Item_type]?.loss || 30.0;
-                const [lossFeeResult] = await conn.query(
+                await conn.query(
                     `INSERT INTO FeeOwed (date_owed, status, fee_amount, fee_type, Person_ID, BorrowedItem_ID)
                      VALUES (?, 1, ?, 3, ?, ?)`,
                     [formatDate(today), lossFee, record.Person_ID, borrowedItem_id]
-                );
-                await conn.query(
-                    `INSERT INTO notification (Person_ID, type, message, is_read, created_at, Fine_ID)
-                     VALUES (?, 2, ?, 0, NOW(), ?)`,
-                    [record.Person_ID, `A loss fee of $${lossFee.toFixed(2)} has been added to your account for "${record.Item_name}".`, lossFeeResult.insertId]
                 );
             }
 
@@ -305,23 +290,6 @@ async function returnItem(req, res) {
             // if returned normally (status=1), promote_next_hold trigger fires automatically
             const newCopyStatus = lost ? 3 : damaged ? 4 : 1;
             await conn.query(`UPDATE Copy SET Copy_status = ? WHERE Copy_ID = ?`, [newCopyStatus, record.Copy_ID]);
-
-            // step 4 — if copy became available, notify whoever was just promoted to ready
-            if (newCopyStatus === 1) {
-                const [promoted] = await conn.query(
-                    `SELECT h.Hold_ID, h.Person_ID FROM HoldItem h
-                     JOIN Copy c ON h.Copy_ID = c.Copy_ID
-                     WHERE c.Item_ID = (SELECT Item_ID FROM Copy WHERE Copy_ID = ?) AND h.hold_status = 2 AND h.Copy_ID = ?`,
-                    [record.Copy_ID, record.Copy_ID]
-                );
-                if (promoted.length > 0) {
-                    await conn.query(
-                        `INSERT INTO notification (Person_ID, type, message, is_read, created_at, Hold_ID)
-                         VALUES (?, 3, ?, 0, NOW(), ?)`,
-                        [promoted[0].Person_ID, `Your hold for "${record.Item_name}" is ready for pickup. Please pick it up within 2 days.`, promoted[0].Hold_ID]
-                    );
-                }
-            }
 
             await conn.commit();
 

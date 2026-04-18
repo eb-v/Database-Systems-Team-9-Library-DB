@@ -49,13 +49,13 @@ export default function NotificationsPage() {
   };
 
   const getNotificationType = (type) => {
-    switch (type) {
-      case 2:
-        return "Fee Update";
-      case 3:
+    switch (Number(type)) {
+      case 1:
         return "Hold Ready";
-      case 4:
-        return "Reservation Cancelled";
+      case 2:
+       return "Fee Update";
+      case 3:
+        return "Reminder";
       default:
         return "Notification";
     }
