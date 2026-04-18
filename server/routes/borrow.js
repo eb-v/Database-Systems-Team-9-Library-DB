@@ -291,23 +291,6 @@ async function returnItem(req, res) {
             const newCopyStatus = lost ? 3 : damaged ? 4 : 1;
             await conn.query(`UPDATE Copy SET Copy_status = ? WHERE Copy_ID = ?`, [newCopyStatus, record.Copy_ID]);
 
-            // step 4 — if copy became available, notify whoever was just promoted to ready
-            if (newCopyStatus === 1) {
-                const [promoted] = await conn.query(
-                    `SELECT h.Hold_ID, h.Person_ID FROM HoldItem h
-                     JOIN Copy c ON h.Copy_ID = c.Copy_ID
-                     WHERE c.Item_ID = (SELECT Item_ID FROM Copy WHERE Copy_ID = ?) AND h.hold_status = 2 AND h.Copy_ID = ?`,
-                    [record.Copy_ID, record.Copy_ID]
-                );
-                if (promoted.length > 0) {
-                    await conn.query(
-                        `INSERT INTO notification (Person_ID, type, message, is_read, created_at, Hold_ID)
-                         VALUES (?, 3, ?, 0, NOW(), ?)`,
-                        [promoted[0].Person_ID, `Your hold for "${record.Item_name}" is ready for pickup. Please pick it up within 2 days.`, promoted[0].Hold_ID]
-                    );
-                }
-            }
-
             await conn.commit();
 
             res.writeHead(200);
