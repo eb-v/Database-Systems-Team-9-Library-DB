@@ -22,11 +22,12 @@ import ManageStaffPage from "./pages/ManageStaffPage";
 import ManageRoomsPage from "./pages/ManageRoomsPage";
 import ReportsPage from "./pages/ReportsPage";
 import NotificationsPage from "./pages/NotificationsPage";
+import HomePage from "./pages/HomePage";
 
 export default function App() {
   return (
     <Routes>
-      <Route path="/" element={<Navigate to="/login" replace />} />
+      <Route path="/" element={<Navigate to="/homepage" replace />} />
       <Route path="/login" element={<LoginPage />} />
       <Route path="/register" element={<RegisterPage />} />
       <Route path="/catalog" element={<CatalogPage />} />
@@ -50,6 +51,7 @@ export default function App() {
       <Route path="/manage-rooms" element={<ManageRoomsPage />} />
       <Route path="/reports" element={<ReportsPage />} />
       <Route path="/notifications" element={<NotificationsPage />} />
+      <Route path="/homepage" element={<HomePage />} />
     </Routes>
   );
 }

@@ -1,6 +1,7 @@
 import NavigationBar from "../components/NavigationBar";
 import { useState, useEffect } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import Footer from "../components/Footer";
 import bannerImg from "../assets/banner.png";
 import userIcon from "../assets/user.png";
 import roomIcon from "../assets/room.png";
@@ -239,7 +240,7 @@ export default function CustomerPage() {
           ))}
         </div>
       </section>
-
+    <Footer />
     </div>
   );
 }
