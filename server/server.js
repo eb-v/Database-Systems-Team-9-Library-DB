@@ -97,7 +97,14 @@ const server = http.createServer((req, res) => {
 
     } else if (req.method === 'PUT' && req.url === '/api/users/profile') {
         verifyToken(req, res, () => {
-            users.updateUserProfile(req, res);
+            users.updateOwnUserProfile(req, res);
+        });
+
+    } else if (req.method === 'PUT' && req.url.match(/^\/api\/users\/\d+$/)) {
+        verifyToken(req, res, () => {
+            requireAdmin(req, res, () => {
+                users.updatePatronProfile(req, res);
+            });
         });
 
     } else if (req.method === 'PUT' && req.url === '/api/notifications/read-all') {

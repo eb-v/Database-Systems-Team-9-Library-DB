@@ -18,6 +18,7 @@ import {
 } from "./reportShared";
 
 const ALL_OPTION = "All";
+const NONE_OPTION = "None";
 const BOOK_TYPE = "1";
 const CD_ITEM_TYPE = "2";
 const DEVICE_ITEM_TYPE = "3";
@@ -55,16 +56,32 @@ function getOptionLabel(options, value) {
   return options.find((option) => option.value === value)?.label ?? ALL_OPTION;
 }
 
-function isTypeSelected(itemTypes, itemType) {
+function isNoTypesSelected(itemTypes, noneSelected = false) {
+  return noneSelected && itemTypes.length === 0;
+}
+
+function isTypeSelected(itemTypes, itemType, noneSelected = false) {
+  if (isNoTypesSelected(itemTypes, noneSelected)) {
+    return false;
+  }
+
   return itemTypes.length === 0 || itemTypes.includes(itemType);
 }
 
-function isAllTypesSelected(itemTypes) {
+function isAllTypesSelected(itemTypes, noneSelected = false) {
+  if (isNoTypesSelected(itemTypes, noneSelected)) {
+    return false;
+  }
+
   return itemTypes.length === 0 || itemTypes.length === ITEM_TYPE_FILTER_OPTIONS.length;
 }
 
-function getSelectedTypeLabel(itemTypes) {
-  if (isAllTypesSelected(itemTypes)) {
+function getSelectedTypeLabel(itemTypes, noneSelected = false) {
+  if (isNoTypesSelected(itemTypes, noneSelected)) {
+    return NONE_OPTION;
+  }
+
+  if (isAllTypesSelected(itemTypes, noneSelected)) {
     return ALL_OPTION;
   }
 
@@ -74,24 +91,28 @@ function getSelectedTypeLabel(itemTypes) {
 }
 
 function buildTypeSpecificExportSummary(filters) {
-  if (isAllTypesSelected(filters.itemTypes)) {
+  if (isNoTypesSelected(filters.itemTypes, filters.noItemTypes)) {
+    return [];
+  }
+
+  if (isAllTypesSelected(filters.itemTypes, filters.noItemTypes)) {
     return [];
   }
 
   const summary = [];
 
-  if (isTypeSelected(filters.itemTypes, BOOK_TYPE)) {
+  if (isTypeSelected(filters.itemTypes, BOOK_TYPE, filters.noItemTypes)) {
     summary.push(
       { label: "Genre Search", value: filters.genre.trim() || ALL_OPTION },
       { label: "Author Search", value: filters.authorName.trim() || ALL_OPTION }
     );
   }
 
-  if (isTypeSelected(filters.itemTypes, CD_ITEM_TYPE)) {
+  if (isTypeSelected(filters.itemTypes, CD_ITEM_TYPE, filters.noItemTypes)) {
     summary.push({ label: "CD Type", value: getOptionLabel(CD_TYPE_OPTIONS, filters.cdType) });
   }
 
-  if (isTypeSelected(filters.itemTypes, DEVICE_ITEM_TYPE)) {
+  if (isTypeSelected(filters.itemTypes, DEVICE_ITEM_TYPE, filters.noItemTypes)) {
     summary.push({
       label: "Device Type",
       value: getOptionLabel(DEVICE_TYPE_OPTIONS, filters.deviceType),
@@ -101,34 +122,34 @@ function buildTypeSpecificExportSummary(filters) {
   return summary;
 }
 
-function resetTypeSpecificFilters(nextTypes, onChange) {
-  if (isAllTypesSelected(nextTypes)) {
+function resetTypeSpecificFilters(nextTypes, noneSelected, onChange) {
+  if (isNoTypesSelected(nextTypes, noneSelected) || isAllTypesSelected(nextTypes, noneSelected)) {
     Object.entries(TYPE_FILTER_DEFAULTS).forEach(([key, value]) => onChange(key, value));
     return;
   }
 
-  if (!isTypeSelected(nextTypes, BOOK_TYPE)) {
+  if (!isTypeSelected(nextTypes, BOOK_TYPE, noneSelected)) {
     onChange("genre", TYPE_FILTER_DEFAULTS.genre);
     onChange("authorName", TYPE_FILTER_DEFAULTS.authorName);
   }
 
-  if (!isTypeSelected(nextTypes, CD_ITEM_TYPE)) {
+  if (!isTypeSelected(nextTypes, CD_ITEM_TYPE, noneSelected)) {
     onChange("cdType", TYPE_FILTER_DEFAULTS.cdType);
   }
 
-  if (!isTypeSelected(nextTypes, DEVICE_ITEM_TYPE)) {
+  if (!isTypeSelected(nextTypes, DEVICE_ITEM_TYPE, noneSelected)) {
     onChange("deviceType", TYPE_FILTER_DEFAULTS.deviceType);
   }
 }
 
-function PopularityTypeSpecificFilters({ itemTypes, filters, onChange }) {
-  if (isAllTypesSelected(itemTypes)) {
+function PopularityTypeSpecificFilters({ itemTypes, noneSelected, filters, onChange }) {
+  if (isNoTypesSelected(itemTypes, noneSelected) || isAllTypesSelected(itemTypes, noneSelected)) {
     return null;
   }
 
   return (
     <>
-      {isTypeSelected(itemTypes, BOOK_TYPE) && (
+      {isTypeSelected(itemTypes, BOOK_TYPE, noneSelected) && (
         <>
           <InputControl
             label="Genre"
@@ -144,7 +165,7 @@ function PopularityTypeSpecificFilters({ itemTypes, filters, onChange }) {
           />
         </>
       )}
-      {isTypeSelected(itemTypes, CD_ITEM_TYPE) && (
+      {isTypeSelected(itemTypes, CD_ITEM_TYPE, noneSelected) && (
         <SelectControl
           label="CD Type"
           value={filters.cdType}
@@ -152,7 +173,7 @@ function PopularityTypeSpecificFilters({ itemTypes, filters, onChange }) {
           options={CD_TYPE_OPTIONS}
         />
       )}
-      {isTypeSelected(itemTypes, DEVICE_ITEM_TYPE) && (
+      {isTypeSelected(itemTypes, DEVICE_ITEM_TYPE, noneSelected) && (
         <SelectControl
           label="Device Type"
           value={filters.deviceType}
@@ -164,7 +185,7 @@ function PopularityTypeSpecificFilters({ itemTypes, filters, onChange }) {
   );
 }
 
-function ItemTypeMultiSelectControl({ value, onChange }) {
+function ItemTypeMultiSelectControl({ value, noneSelected, onChange }) {
   const wrapperRef = useRef(null);
   const [open, setOpen] = useState(false);
 
@@ -181,15 +202,18 @@ function ItemTypeMultiSelectControl({ value, onChange }) {
 
   function toggleType(type) {
     const currentValue =
-      value.length === 0 ? ITEM_TYPE_FILTER_OPTIONS.map((option) => option.value) : value;
+      noneSelected
+        ? []
+        : value.length === 0
+        ? ITEM_TYPE_FILTER_OPTIONS.map((option) => option.value)
+        : value;
     const nextValue = currentValue.includes(type)
       ? currentValue.filter((selectedType) => selectedType !== type)
       : [...currentValue, type];
 
     onChange(
-      nextValue.length === 0 || nextValue.length === ITEM_TYPE_FILTER_OPTIONS.length
-        ? []
-        : nextValue
+      nextValue.length === ITEM_TYPE_FILTER_OPTIONS.length ? [] : nextValue,
+      nextValue.length === 0
     );
   }
 
@@ -201,15 +225,24 @@ function ItemTypeMultiSelectControl({ value, onChange }) {
         onClick={() => setOpen((previous) => !previous)}
         className="flex w-full items-center justify-between rounded border border-gray-300 bg-white px-3 py-2 text-left"
       >
-        <span className="truncate">{getSelectedTypeLabel(value)}</span>
+        <span className="truncate">{getSelectedTypeLabel(value, noneSelected)}</span>
         <span className="ml-3 text-xs text-gray-500">{open ? "Close" : "Choose"}</span>
       </button>
 
       {open && (
         <div className="absolute left-0 right-0 z-20 mt-2 rounded-lg border border-gray-200 bg-white p-3 shadow-lg">
+          <div className="mb-3 flex justify-end border-b border-gray-100 pb-2">
+            <button
+              type="button"
+              onClick={() => onChange([], true)}
+              className="text-sm font-medium text-gray-600 hover:text-red-600"
+            >
+              Uncheck all
+            </button>
+          </div>
           <div className="space-y-2">
             {ITEM_TYPE_FILTER_OPTIONS.map((option) => {
-              const checked = isTypeSelected(value, option.value);
+              const checked = isTypeSelected(value, option.value, noneSelected);
 
               return (
                 <label
@@ -243,6 +276,7 @@ export const popularityReportPage = {
   createInitialFilters() {
     return {
       itemTypes: [],
+      noItemTypes: false,
       itemName: "",
       genre: "",
       authorName: "",
@@ -253,25 +287,35 @@ export const popularityReportPage = {
   },
   buildParams(params, filters) {
     appendPeriodParams(params, filters);
-    filters.itemTypes.forEach((itemType) => params.append("type", itemType));
+    if (filters.noItemTypes) {
+      params.set("noTypes", "1");
+    } else {
+      filters.itemTypes.forEach((itemType) => params.append("type", itemType));
+    }
     setTrimmedParam(params, "itemName", filters.itemName);
 
-    if (!isAllTypesSelected(filters.itemTypes) && isTypeSelected(filters.itemTypes, BOOK_TYPE)) {
+    if (
+      !isNoTypesSelected(filters.itemTypes, filters.noItemTypes) &&
+      !isAllTypesSelected(filters.itemTypes, filters.noItemTypes) &&
+      isTypeSelected(filters.itemTypes, BOOK_TYPE, filters.noItemTypes)
+    ) {
       setTrimmedParam(params, "genre", filters.genre);
       setTrimmedParam(params, "authorName", filters.authorName);
     }
 
     if (
-      !isAllTypesSelected(filters.itemTypes) &&
-      isTypeSelected(filters.itemTypes, CD_ITEM_TYPE) &&
+      !isNoTypesSelected(filters.itemTypes, filters.noItemTypes) &&
+      !isAllTypesSelected(filters.itemTypes, filters.noItemTypes) &&
+      isTypeSelected(filters.itemTypes, CD_ITEM_TYPE, filters.noItemTypes) &&
       filters.cdType !== ALL_OPTION
     ) {
       params.set("cdType", filters.cdType);
     }
 
     if (
-      !isAllTypesSelected(filters.itemTypes) &&
-      isTypeSelected(filters.itemTypes, DEVICE_ITEM_TYPE) &&
+      !isNoTypesSelected(filters.itemTypes, filters.noItemTypes) &&
+      !isAllTypesSelected(filters.itemTypes, filters.noItemTypes) &&
+      isTypeSelected(filters.itemTypes, DEVICE_ITEM_TYPE, filters.noItemTypes) &&
       filters.deviceType !== ALL_OPTION
     ) {
       params.set("deviceType", filters.deviceType);
@@ -281,7 +325,7 @@ export const popularityReportPage = {
     return [
       {
         label: "Item Type",
-        value: getSelectedTypeLabel(filters.itemTypes),
+        value: getSelectedTypeLabel(filters.itemTypes, filters.noItemTypes),
       },
       { label: "Item Search", value: filters.itemName.trim() || ALL_OPTION },
       ...buildTypeSpecificExportSummary(filters),
@@ -290,14 +334,19 @@ export const popularityReportPage = {
 };
 
 export function PopularityReportsFilters({ filters, onChange }) {
-  function handleItemTypesChange(nextTypes) {
+  function handleItemTypesChange(nextTypes, noneSelected = false) {
     onChange("itemTypes", nextTypes);
-    resetTypeSpecificFilters(nextTypes, onChange);
+    onChange("noItemTypes", noneSelected);
+    resetTypeSpecificFilters(nextTypes, noneSelected, onChange);
   }
 
   return (
     <>
-      <ItemTypeMultiSelectControl value={filters.itemTypes} onChange={handleItemTypesChange} />
+      <ItemTypeMultiSelectControl
+        value={filters.itemTypes}
+        noneSelected={filters.noItemTypes}
+        onChange={handleItemTypesChange}
+      />
       <InputControl
         label="Item Name"
         value={filters.itemName}
@@ -306,6 +355,7 @@ export function PopularityReportsFilters({ filters, onChange }) {
       />
       <PopularityTypeSpecificFilters
         itemTypes={filters.itemTypes}
+        noneSelected={filters.noItemTypes}
         filters={filters}
         onChange={onChange}
       />

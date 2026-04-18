@@ -1,437 +1,389 @@
-import { useState, useEffect } from "react";
-import NavigationBar from "../components/NavigationBar";
+import { useEffect, useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { apiFetch } from "../api";
+import NavigationBar from "../components/NavigationBar";
 import Banner from "../components/Banner";
+import UserLookupSearchSection from "../components/userLookup/UserLookupSearchSection";
+import UserLookupDetailsSection from "../components/userLookup/UserLookupDetailsSection";
+import { apiFetch } from "../api";
+import { EMPTY_MESSAGE, buildEditForm } from "../components/userLookup/userLookupConfig";
 
-const getAccountStatusLabel = (status) => (Number(status) === 1 ? "Active" : "Inactive");
-const getBorrowStatusLabel  = (status) => (Number(status) === 1 ? "Good Standing" : "Restricted");
-
-const HOLD_STATUS  = { 0: "Cancelled", 1: "Waiting", 2: "Ready for Pickup", 3: "Fulfilled" };
-const COPY_STATUS  = { 1: "Available", 2: "Checked Out", 3: "On Hold" };
-const FEE_STATUS   = { 1: "Unpaid", 2: "Paid" };
+const DEFAULT_STATUS_VALUE = "1";
+const DEFAULT_ROLE_VALUE = "2";
 
 export default function UserLookupPage() {
-  const navigate   = useNavigate();
-  const token      = sessionStorage.getItem("token");
-  const userType   = sessionStorage.getItem("userType");
-  const isStaff    = userType === "staff";
-  const isAdmin    = userType === "admin";
+  const navigate = useNavigate();
+  const token = sessionStorage.getItem("token");
+  const userType = sessionStorage.getItem("userType");
+  const isStaff = userType === "staff";
+  const isAdmin = userType === "admin";
 
-  const [searchValue,   setSearchValue]   = useState("");
-  const [userRecord,    setUserRecord]    = useState(null);
-  const [summary,       setSummary]       = useState(null);
-  const [results,       setResults]       = useState(null);
-  const [message,       setMessage]       = useState({ text: "", success: true });
-  const [allUsers,      setAllUsers]      = useState([]);
-  const [usersLoading,  setUsersLoading]  = useState(true);
+  const [searchMode, setSearchMode] = useState("all");
+  const [searchValue, setSearchValue] = useState("");
+  const [statusValue, setStatusValue] = useState(DEFAULT_STATUS_VALUE);
 
-  // panel state: data (null = not fetched), loading, open
-  const [borrows,        setBorrows]        = useState(null);
+  const [allUsers, setAllUsers] = useState([]);
+  const [usersLoading, setUsersLoading] = useState(true);
+  const [usersError, setUsersError] = useState("");
+
+  const [userRecord, setUserRecord] = useState(null);
+  const [summary, setSummary] = useState(null);
+  const [message, setMessage] = useState(EMPTY_MESSAGE);
+
+  const [borrows, setBorrows] = useState(null);
   const [borrowsLoading, setBorrowsLoading] = useState(false);
-  const [borrowsOpen,    setBorrowsOpen]    = useState(false);
+  const [borrowsOpen, setBorrowsOpen] = useState(false);
 
-  const [holds,        setHolds]        = useState(null);
+  const [holds, setHolds] = useState(null);
   const [holdsLoading, setHoldsLoading] = useState(false);
-  const [holdsOpen,    setHoldsOpen]    = useState(false);
+  const [holdsOpen, setHoldsOpen] = useState(false);
 
-  const [fees,        setFees]        = useState(null);
+  const [fees, setFees] = useState(null);
   const [feesLoading, setFeesLoading] = useState(false);
-  const [feesOpen,    setFeesOpen]    = useState(false);
+  const [feesOpen, setFeesOpen] = useState(false);
+
+  const [reservations, setReservations] = useState(null);
+  const [reservationsLoading, setReservationsLoading] = useState(false);
+  const [reservationsOpen, setReservationsOpen] = useState(false);
+
+  const [editForm, setEditForm] = useState(buildEditForm(null));
+  const [editMessage, setEditMessage] = useState(EMPTY_MESSAGE);
+  const [saveLoading, setSaveLoading] = useState(false);
+
+  const selectedIsUserAccount = Number(userRecord?.role) === 2;
 
   useEffect(() => {
-    apiFetch("/api/users", { headers: { Authorization: `Bearer ${token}` } })
-      .then((r) => r.json())
-      .then((data) => { if (Array.isArray(data)) setAllUsers(data); })
-      .catch(() => {})
-      .finally(() => setUsersLoading(false));
-  }, []);
+    resetSelectedPanels();
+    setEditForm(buildEditForm(userRecord));
+    setEditMessage(EMPTY_MESSAGE);
+  }, [userRecord]);
 
-  // reset all panel data when the loaded user changes
   useEffect(() => {
-    setBorrows(null); setBorrowsOpen(false);
-    setHolds(null);   setHoldsOpen(false);
-    setFees(null);    setFeesOpen(false);
-  }, [userRecord?.Person_ID]);
+    async function fetchUsers() {
+      setUsersLoading(true);
+      setUsersError("");
 
-  const fetchPanel = async (endpoint, setter, setLoading) => {
+      try {
+        const response = await apiFetch("/api/users", {
+          headers: { Authorization: `Bearer ${token}` },
+        });
+        const data = await response.json();
+
+        if (!response.ok) {
+          setUsersError(data.error || "Failed to load users.");
+          return;
+        }
+
+        setAllUsers(Array.isArray(data) ? data : []);
+      } catch {
+        setUsersError("Unable to connect to the server.");
+      } finally {
+        setUsersLoading(false);
+      }
+    }
+
+    fetchUsers();
+  }, [token]);
+
+  const filteredUsers = useMemo(() => {
+    const trimmedQuery = searchValue.trim().toLowerCase();
+
+    return allUsers.filter((user) => {
+      const fullName = `${user.First_name || ""} ${user.Last_name || ""}`.trim().toLowerCase();
+      const searchBuckets = {
+        all: [
+          fullName,
+          user.First_name?.toLowerCase() || "",
+          user.Last_name?.toLowerCase() || "",
+          user.username?.toLowerCase() || "",
+          user.email?.toLowerCase() || "",
+          user.phone_number?.toLowerCase() || "",
+          String(user.Person_ID || ""),
+        ],
+        name: [fullName, user.First_name?.toLowerCase() || "", user.Last_name?.toLowerCase() || ""],
+        username: [user.username?.toLowerCase() || ""],
+        email: [user.email?.toLowerCase() || ""],
+        phone: [user.phone_number?.toLowerCase() || ""],
+        personId: [String(user.Person_ID || "")],
+      };
+
+      if (searchMode === "role") return String(user.role) === statusValue;
+      if (searchMode === "accountStatus") return String(user.account_status) === statusValue;
+      if (searchMode === "borrowStatus") return String(user.borrow_status) === statusValue;
+      if (!trimmedQuery) return true;
+
+      return (searchBuckets[searchMode] || searchBuckets.all).some((value) => value.includes(trimmedQuery));
+    });
+  }, [allUsers, searchMode, searchValue, statusValue]);
+
+  const displayedUsers = filteredUsers.slice(0, 150);
+
+  const activityPanels = {
+    borrows: { data: borrows, loading: borrowsLoading, open: borrowsOpen, onToggle: () => togglePanel("borrows") },
+    holds: { data: holds, loading: holdsLoading, open: holdsOpen, onToggle: () => togglePanel("holds") },
+    fees: { data: fees, loading: feesLoading, open: feesOpen, onToggle: () => togglePanel("fees") },
+    reservations: { data: reservations, loading: reservationsLoading, open: reservationsOpen, onToggle: () => togglePanel("reservations") },
+  };
+
+  function resetSelectedPanels() {
+    setBorrows(null);
+    setBorrowsOpen(false);
+    setHolds(null);
+    setHoldsOpen(false);
+    setFees(null);
+    setFeesOpen(false);
+    setReservations(null);
+    setReservationsOpen(false);
+  }
+
+  async function fetchPanel(endpoint, setter, setLoading) {
     setLoading(true);
+
     try {
-      const r    = await apiFetch(endpoint, { headers: { Authorization: `Bearer ${token}` } });
-      const data = await r.json();
-      setter(r.ok ? data : []);
+      const response = await apiFetch(endpoint, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+      setter(response.ok ? data : []);
     } catch {
       setter([]);
     } finally {
       setLoading(false);
     }
-  };
+  }
 
-  const toggleBorrows = () => {
-    if (!borrowsOpen && borrows === null)
-      fetchPanel(`/api/borrow/${userRecord.Person_ID}`, setBorrows, setBorrowsLoading);
-    setBorrowsOpen((o) => !o);
-  };
+  function togglePanel(panelKey) {
+    if (!userRecord) return;
 
-  const toggleHolds = () => {
-    if (!holdsOpen && holds === null)
-      fetchPanel(`/api/holds/${userRecord.Person_ID}`, setHolds, setHoldsLoading);
-    setHoldsOpen((o) => !o);
-  };
+    const panelMap = {
+      borrows: {
+        open: borrowsOpen,
+        data: borrows,
+        endpoint: `/api/borrow/${userRecord.Person_ID}`,
+        setter: setBorrows,
+        setLoading: setBorrowsLoading,
+        setOpen: setBorrowsOpen,
+      },
+      holds: {
+        open: holdsOpen,
+        data: holds,
+        endpoint: `/api/holds/${userRecord.Person_ID}`,
+        setter: setHolds,
+        setLoading: setHoldsLoading,
+        setOpen: setHoldsOpen,
+      },
+      fees: {
+        open: feesOpen,
+        data: fees,
+        endpoint: `/api/fees/${userRecord.Person_ID}`,
+        setter: setFees,
+        setLoading: setFeesLoading,
+        setOpen: setFeesOpen,
+      },
+      reservations: {
+        open: reservationsOpen,
+        data: reservations,
+        endpoint: `/api/reservations/${userRecord.Person_ID}`,
+        setter: setReservations,
+        setLoading: setReservationsLoading,
+        setOpen: setReservationsOpen,
+      },
+    };
 
-  const toggleFees = () => {
-    if (!feesOpen && fees === null)
-      fetchPanel(`/api/fees/${userRecord.Person_ID}`, setFees, setFeesLoading);
-    setFeesOpen((o) => !o);
-  };
+    const panel = panelMap[panelKey];
+    if (!panel) return;
 
-  const handleSearch = async () => {
-    setMessage({ text: "", success: true });
-    setUserRecord(null);
-    setSummary(null);
-    setResults(null);
-
-    if (!searchValue.trim()) {
-      setMessage({ text: "Please enter a search value.", success: false });
-      return;
+    if (!panel.open && panel.data === null) {
+      fetchPanel(panel.endpoint, panel.setter, panel.setLoading);
     }
 
-    try {
-      const response = await apiFetch(
-        `/api/users/lookup?searchBy=all&value=${encodeURIComponent(searchValue)}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const data = await response.json();
-      if (!response.ok) { setMessage({ text: data.error || "Failed to load user record.", success: false }); return; }
+    panel.setOpen((current) => !current);
+  }
 
-      if (data.results) {
-        setResults(data.results);
-        setMessage({ text: `${data.results.length} result${data.results.length !== 1 ? "s" : ""} found.`, success: true });
-      } else {
-        setUserRecord(data.person);
-        setSummary(data.summary);
+  async function loadUser(personId) {
+    setMessage(EMPTY_MESSAGE);
+
+    try {
+      const response = await apiFetch(`/api/users/lookup?searchBy=personId&value=${personId}`, {
+        headers: { Authorization: `Bearer ${token}` },
+      });
+      const data = await response.json();
+
+      if (!response.ok) {
+        setMessage({ text: data.error || "Failed to load user record.", success: false });
+        return;
       }
-    } catch {
-      setMessage({ text: "Unable to connect to the server.", success: false });
-    }
-  };
 
-  const handleSelectResult = async (personId) => {
-    setMessage({ text: "", success: true });
-    setResults(null);
-    try {
-      const response = await apiFetch(
-        `/api/users/lookup?searchBy=personId&value=${personId}`,
-        { headers: { Authorization: `Bearer ${token}` } }
-      );
-      const data = await response.json();
-      if (!response.ok) { setMessage({ text: data.error || "Failed to load user record.", success: false }); return; }
       setUserRecord(data.person);
       setSummary(data.summary);
     } catch {
       setMessage({ text: "Unable to connect to the server.", success: false });
     }
-  };
+  }
+
+  function handleSearchModeChange(nextMode) {
+    setSearchMode(nextMode);
+    setMessage(EMPTY_MESSAGE);
+
+    if (nextMode === "role") {
+      setStatusValue(DEFAULT_ROLE_VALUE);
+      return;
+    }
+
+    if (nextMode === "accountStatus" || nextMode === "borrowStatus") {
+      setStatusValue(DEFAULT_STATUS_VALUE);
+      return;
+    }
+
+    setSearchValue("");
+  }
+
+  function handleQuickFilter(mode, value) {
+    setSearchMode(mode);
+    setStatusValue(value);
+    setSearchValue("");
+    setMessage(EMPTY_MESSAGE);
+  }
+
+  function clearFilters() {
+    setSearchMode("all");
+    setSearchValue("");
+    setStatusValue(DEFAULT_STATUS_VALUE);
+    setMessage(EMPTY_MESSAGE);
+  }
+
+  function handleEditChange(event) {
+    const { name, value } = event.target;
+    setEditForm((current) => ({ ...current, [name]: value }));
+  }
+
+  async function handleSave() {
+    if (!userRecord) return;
+
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    const phoneRegex = /^\+?[\d\s\-().]{7,20}$/;
+    const zipRegex = /^\d{5}$/;
+
+    if (!editForm.firstName.trim()) return setEditMessage({ text: "First name is required.", success: false });
+    if (!editForm.lastName.trim()) return setEditMessage({ text: "Last name is required.", success: false });
+    if (!editForm.username.trim()) return setEditMessage({ text: "Username is required.", success: false });
+    if (!emailRegex.test(editForm.email.trim())) return setEditMessage({ text: "Please enter a valid email address.", success: false });
+    if (editForm.phoneNumber.trim() && !phoneRegex.test(editForm.phoneNumber.trim())) return setEditMessage({ text: "Please enter a valid phone number.", success: false });
+    if (editForm.zipCode.trim() && !zipRegex.test(editForm.zipCode.trim())) return setEditMessage({ text: "Zip code must be 5 digits.", success: false });
+    if (editForm.birthday && new Date(editForm.birthday) > new Date()) return setEditMessage({ text: "Birthday cannot be in the future.", success: false });
+
+    setSaveLoading(true);
+    setEditMessage(EMPTY_MESSAGE);
+
+    try {
+      const response = await apiFetch(`/api/users/${userRecord.Person_ID}`, {
+        method: "PUT",
+        headers: {
+          "Content-Type": "application/json",
+          Authorization: `Bearer ${token}`,
+        },
+        body: JSON.stringify({
+          firstName: editForm.firstName,
+          lastName: editForm.lastName,
+          username: editForm.username,
+          email: editForm.email,
+          phoneNumber: editForm.phoneNumber,
+          birthday: editForm.birthday,
+          streetAddress: editForm.streetAddress,
+          zipCode: editForm.zipCode,
+          accountStatus: Number(editForm.accountStatus),
+          borrowStatus: Number(editForm.borrowStatus),
+        }),
+      });
+
+      const data = await response.json();
+
+      if (!response.ok) {
+        setEditMessage({ text: data.error || "Failed to save changes.", success: false });
+        return;
+      }
+
+      setUserRecord(data.person);
+      setSummary(data.summary);
+      setAllUsers((current) =>
+        current.map((user) => (user.Person_ID === data.person.Person_ID ? { ...user, ...data.person } : user))
+      );
+      setEditMessage({ text: "User details updated successfully.", success: true });
+      setMessage({ text: "Selected user record refreshed.", success: true });
+    } catch {
+      setEditMessage({ text: "Unable to connect to the server.", success: false });
+    } finally {
+      setSaveLoading(false);
+    }
+  }
 
   return (
     <div className="min-h-screen bg-gray-100">
-      <NavigationBar isStaff={true} />
+      <NavigationBar isStaff />
 
-      <div className="max-w-5xl mx-auto px-6 py-10">
+      <div className="mx-auto max-w-6xl px-6 py-10">
         <button
           onClick={() => navigate(isAdmin ? "/admin" : isStaff ? "/staff" : "/view-account")}
-          className="text-sm text-green-900 font-semibold hover:underline mb-6 inline-block"
+          className="mb-6 inline-block text-sm font-semibold text-green-900 hover:underline"
         >
-          ← Back
+          {"< Back"}
         </button>
 
-        <h1 className="text-3xl font-bold text-green-900 mb-2">User Lookup</h1>
-        <p className="text-gray-600 mb-8">
-          Search for a library guest and view their current borrowing and fee information.
-        </p>
-
-        <div className="bg-white rounded-xl shadow-md p-6 space-y-8">
-
-          {/* ── Search ── */}
-          <div className="space-y-4">
-            <h2 className="text-xl font-semibold text-green-900">Search User</h2>
-            <input
-              type="text"
-              value={searchValue}
-              onChange={(e) => { setSearchValue(e.target.value); setResults(null); setMessage({ text: "", success: true }); setUserRecord(null); setSummary(null); }}
-              onKeyDown={(e) => e.key === "Enter" && handleSearch()}
-              placeholder="Search by name, username, email, phone, or ID..."
-              className="w-full border border-gray-300 rounded-lg px-4 py-3"
-            />
-            {/* ── User list (filtered live or API results) ── */}
-            <div className="divide-y border rounded-lg overflow-hidden max-h-[60vh] overflow-y-auto">
-              {usersLoading ? (
-                <p className="px-4 py-3 text-sm text-gray-400 italic">Loading users...</p>
-              ) : (() => {
-                const q = searchValue.toLowerCase();
-                const displayList = results ?? (
-                  q
-                    ? allUsers.filter((u) =>
-                        u.First_name?.toLowerCase().includes(q) ||
-                        u.Last_name?.toLowerCase().includes(q)  ||
-                        u.username?.toLowerCase().includes(q)   ||
-                        u.email?.toLowerCase().includes(q)      ||
-                        String(u.Person_ID).includes(q)
-                      )
-                    : allUsers
-                );
-                if (displayList.length === 0)
-                  return <p className="px-4 py-3 text-sm text-gray-400 italic">No users found.</p>;
-                return displayList.map((u) => (
-                  <button
-                    key={u.Person_ID}
-                    onClick={() => handleSelectResult(u.Person_ID)}
-                    className={`w-full text-left px-4 py-3 hover:bg-green-50 flex justify-between items-center transition-colors ${userRecord?.Person_ID === u.Person_ID ? "bg-green-50" : ""}`}
-                  >
-                    <span className="font-semibold text-gray-800">{u.First_name} {u.Last_name}</span>
-                    <span className="text-sm text-gray-500">{u.email} · ID {u.Person_ID}</span>
-                  </button>
-                ));
-              })()}
-            </div>
+        <div className="mb-8 flex flex-col gap-3 md:flex-row md:items-end md:justify-between">
+          <div>
+            <h1 className="text-3xl font-bold text-green-900">User Lookup</h1>
+            <p className="mt-2 max-w-3xl text-gray-600">
+              Search users by multiple identifiers, review current account activity, and
+              {isAdmin ? " update user information from one place." : " review account details from one place."}
+            </p>
           </div>
-
-          <Banner message={message} onDismiss={() => setMessage({ text: "", success: true })} />
-
-          {/* ── User details + panels ── */}
-          {userRecord && (
-          <div className="space-y-8">
-
-            {/* User Details */}
-            <div className="space-y-4">
-              <div className="flex items-center justify-between">
-                <h2 className="text-xl font-semibold text-green-900">User Details</h2>
-                <button
-                  onClick={() => { setUserRecord(null); setSummary(null); setMessage({ text: "", success: true }); }}
-                  className="text-gray-400 hover:text-gray-600 text-sm"
-                >
-                  ✕
-                </button>
-              </div>
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <ReadOnlyField label="Username"       value={userRecord.username} />
-                <ReadOnlyField label="Person ID"      value={userRecord.Person_ID} />
-                <ReadOnlyField label="Name"           value={`${userRecord.First_name} ${userRecord.Last_name}`} />
-                <ReadOnlyField label="Email"          value={userRecord.email} />
-                <ReadOnlyField label="Phone"          value={userRecord.phone_number || "—"} />
-                <ReadOnlyField label="Account Status" value={getAccountStatusLabel(userRecord.account_status)} />
-                <ReadOnlyField label="Borrow Status"  value={getBorrowStatusLabel(userRecord.borrow_status)} />
-              </div>
-            </div>
-
-            {/* Account Summary */}
-            {summary && (
-              <div className="space-y-4">
-                <h2 className="text-xl font-semibold text-green-900">Account Summary</h2>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <SummaryCard title="Borrowed Items"   value={summary.activeBorrows}        description="Items currently checked out" />
-                  <SummaryCard title="Outstanding Fees" value={`$${summary.unpaidFeeTotal}`} description={`${summary.unpaidFeeCount} unpaid fee(s)`} />
-                  <SummaryCard title="Active Holds"     value={summary.activeHolds}          description="Items currently on hold" />
-                </div>
-              </div>
-            )}
-
-            {/* Expandable panels */}
-            <div className="space-y-3">
-              <h2 className="text-xl font-semibold text-green-900">Details</h2>
-
-              <AccordionPanel label="Borrowed Items" count={summary?.activeBorrows} open={borrowsOpen} onToggle={toggleBorrows} loading={borrowsLoading} color="green">
-                {borrows && (
-                  borrows.length === 0
-                    ? <EmptyState text="No borrow history found." />
-                    : <table className="w-full text-sm text-left">
-                        <thead>
-                          <tr className="text-gray-500 border-b text-xs uppercase">
-                            <th className="py-2 pr-4">Item</th>
-                            <th className="py-2 pr-4">Type</th>
-                            <th className="py-2 pr-4">Borrowed</th>
-                            <th className="py-2 pr-4">Due</th>
-                            <th className="py-2">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          {borrows.map((b) => {
-                            const active  = b.Copy_status === 2;
-                            const overdue = active && new Date(b.returnBy_date) < new Date();
-                            return (
-                              <tr key={b.BorrowedItem_ID} className="text-gray-700">
-                                <td className="py-2 pr-4 font-medium">{b.Item_name}</td>
-                                <td className="py-2 pr-4 text-gray-500">{b.Item_type}</td>
-                                <td className="py-2 pr-4">{fmtDate(b.borrow_date)}</td>
-                                <td className="py-2 pr-4">{fmtDate(b.returnBy_date)}</td>
-                                <td className="py-2">
-                                  {active
-                                    ? <Badge label={overdue ? "Overdue" : "Checked Out"} color={overdue ? "red" : "yellow"} />
-                                    : <Badge label="Returned" color="green" />}
-                                </td>
-                              </tr>
-                            );
-                          })}
-                        </tbody>
-                      </table>
-                )}
-              </AccordionPanel>
-
-              <AccordionPanel label="Holds" count={summary?.activeHolds} open={holdsOpen} onToggle={toggleHolds} loading={holdsLoading} color="blue">
-                {holds && (
-                  holds.length === 0
-                    ? <EmptyState text="No holds found." />
-                    : <table className="w-full text-sm text-left">
-                        <thead>
-                          <tr className="text-gray-500 border-b text-xs uppercase">
-                            <th className="py-2 pr-4">Item</th>
-                            <th className="py-2 pr-4">Type</th>
-                            <th className="py-2 pr-4">Status</th>
-                            <th className="py-2 pr-4">Queue</th>
-                            <th className="py-2 pr-4">Hold Date</th>
-                            <th className="py-2">Expires</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          {holds.map((h) => (
-                            <tr key={h.Hold_ID} className="text-gray-700">
-                              <td className="py-2 pr-4 font-medium">{h.Item_name}</td>
-                              <td className="py-2 pr-4 text-gray-500">{h.Item_type}</td>
-                              <td className="py-2 pr-4">
-                                <Badge
-                                  label={HOLD_STATUS[h.hold_status] ?? "Unknown"}
-                                  color={h.hold_status === 3 ? "green" : h.hold_status === 2 ? "green" : h.hold_status === 1 ? "yellow" : "red"}
-                                />
-                              </td>
-                              <td className="py-2 pr-4">#{h.queue_status + 1}</td>
-                              <td className="py-2 pr-4">{fmtDate(h.hold_date)}</td>
-                              <td className="py-2">{h.expiry_date ? fmtDate(h.expiry_date) : "—"}</td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                )}
-              </AccordionPanel>
-
-              <AccordionPanel label="Fees" count={summary?.unpaidFeeCount} open={feesOpen} onToggle={toggleFees} loading={feesLoading} color="purple">
-                {fees && (
-                  fees.length === 0
-                    ? <EmptyState text="No fees found." />
-                    : <table className="w-full text-sm text-left">
-                        <thead>
-                          <tr className="text-gray-500 border-b text-xs uppercase">
-                            <th className="py-2 pr-4">Item</th>
-                            <th className="py-2 pr-4">Type</th>
-                            <th className="py-2 pr-4">Fee Type</th>
-                            <th className="py-2 pr-4">Amount</th>
-                            <th className="py-2 pr-4">Date Owed</th>
-                            <th className="py-2">Status</th>
-                          </tr>
-                        </thead>
-                        <tbody className="divide-y">
-                          {fees.map((f) => (
-                            <tr key={f.Fine_ID} className="text-gray-700">
-                              <td className="py-2 pr-4 font-medium">{f.Item_name}</td>
-                              <td className="py-2 pr-4 text-gray-500">{f.Item_type}</td>
-                              <td className="py-2 pr-4">{f.fee_type}</td>
-                              <td className="py-2 pr-4 font-semibold">${Number(f.fee_amount).toFixed(2)}</td>
-                              <td className="py-2 pr-4">{fmtDate(f.date_owed)}</td>
-                              <td className="py-2">
-                                <Badge
-                                  label={FEE_STATUS[Number(f.status)] ?? "Unknown"}
-                                  color={Number(f.status) === 1 ? "red" : "green"}
-                                />
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                )}
-              </AccordionPanel>
-            </div>
-
+          <div className="rounded-xl border border-green-200 bg-green-50 px-4 py-3 text-sm text-green-900">
+            {isAdmin
+              ? "Admin: user records can be edited below."
+              : "Staff: records are view-only on this page."}
           </div>
-          )}
+        </div>
 
+        <div className="space-y-8 rounded-2xl bg-white p-6 shadow-md">
+          <UserLookupSearchSection
+            searchMode={searchMode}
+            searchValue={searchValue}
+            statusValue={statusValue}
+            usersLoading={usersLoading}
+            usersError={usersError}
+            filteredUsers={filteredUsers}
+            displayedUsers={displayedUsers}
+            selectedUserId={userRecord?.Person_ID}
+            onSearchModeChange={handleSearchModeChange}
+            onSearchValueChange={setSearchValue}
+            onStatusValueChange={setStatusValue}
+            onQuickFilter={handleQuickFilter}
+            onClearFilters={clearFilters}
+            onSelectUser={loadUser}
+          />
+
+          <Banner message={message} onDismiss={() => setMessage(EMPTY_MESSAGE)} />
+
+          <UserLookupDetailsSection
+            userRecord={userRecord}
+            summary={summary}
+            isAdmin={isAdmin}
+            selectedIsUserAccount={selectedIsUserAccount}
+            editForm={editForm}
+            editMessage={editMessage}
+            saveLoading={saveLoading}
+            activityPanels={activityPanels}
+            onClearSelection={() => {
+              setUserRecord(null);
+              setSummary(null);
+              setMessage(EMPTY_MESSAGE);
+            }}
+            onEditChange={handleEditChange}
+            onSave={handleSave}
+            onResetEdit={() => setEditForm(buildEditForm(userRecord))}
+            onDismissEditMessage={() => setEditMessage(EMPTY_MESSAGE)}
+          />
         </div>
       </div>
-    </div>
-  );
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-function fmtDate(str) {
-  if (!str) return "—";
-  return new Date(str.slice(0, 10) + 'T00:00:00').toLocaleDateString(undefined, { month: "short", day: "numeric", year: "numeric" });
-}
-
-const BADGE_COLORS = {
-  green:  "bg-green-100 text-green-800",
-  blue:   "bg-blue-100 text-blue-800",
-  red:    "bg-red-100 text-red-800",
-  yellow: "bg-yellow-100 text-yellow-800",
-  purple: "bg-purple-100 text-purple-800",
-  gray:   "bg-gray-100 text-gray-600",
-};
-
-const PANEL_COLORS = {
-  green:  "hover:bg-green-50",
-  blue:   "hover:bg-blue-50",
-  purple: "hover:bg-purple-50",
-};
-
-function Badge({ label, color = "gray" }) {
-  return (
-    <span className={`inline-block px-2 py-0.5 rounded-full text-xs font-semibold ${BADGE_COLORS[color] ?? BADGE_COLORS.gray}`}>
-      {label}
-    </span>
-  );
-}
-
-function AccordionPanel({ label, count, open, onToggle, loading, color = "green", children }) {
-  return (
-    <div className="border rounded-lg overflow-hidden">
-      <button
-        onClick={onToggle}
-        className={`w-full flex items-center justify-between px-5 py-4 text-left font-semibold text-gray-800 ${PANEL_COLORS[color]} transition-colors`}
-      >
-        <div className="flex items-center gap-3">
-          <span>{label}</span>
-          {count != null && count > 0 && (
-            <Badge label={count} color={color} />
-          )}
-        </div>
-        <span className="text-gray-400 text-sm">{open ? "▲" : "▼"}</span>
-      </button>
-      {open && (
-        <div className="px-5 py-4 border-t overflow-x-auto">
-          {loading ? <p className="text-sm text-gray-400 italic">Loading...</p> : children}
-        </div>
-      )}
-    </div>
-  );
-}
-
-function EmptyState({ text }) {
-  return <p className="text-sm text-gray-400 italic">{text}</p>;
-}
-
-function ReadOnlyField({ label, value }) {
-  return (
-    <div>
-      <p className="text-sm text-gray-500">{label}</p>
-      <p className="font-semibold text-gray-800">{value}</p>
-    </div>
-  );
-}
-
-function SummaryCard({ title, value, description }) {
-  return (
-    <div className="bg-gray-50 border rounded-lg p-5 shadow-sm">
-      <h3 className="text-lg font-semibold text-green-900 mb-1">{title}</h3>
-      <p className="text-2xl font-bold text-gray-800 mb-1">{value}</p>
-      <p className="text-sm text-gray-600">{description}</p>
     </div>
   );
 }
