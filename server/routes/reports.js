@@ -269,6 +269,7 @@ function getPopularityFilters(searchParams) {
 
     return {
         ...getPeriodFilters(searchParams),
+        noTypes: parseBoolean(searchParams.get('noTypes')),
         types: parseMappedIntList(searchParams.getAll('type'), [1, 2, 3]),
         itemNamePattern: buildLikePattern(itemName),
         genrePattern: buildLikePattern(genre),
@@ -529,7 +530,9 @@ async function getReportsOverview(req, res) {
 async function fetchPopularityRows(filters) {
     const borrowRangeParams = getDateRangeParams(filters);
     const holdRangeParams = getDateRangeParams(filters);
-    const typeClause = filters.types.length
+    const typeClause = filters.noTypes
+        ? '1 = 0'
+        : filters.types.length
         ? `i.Item_type IN (${filters.types.map(() => '?').join(', ')})`
         : '1 = 1';
 
@@ -646,7 +649,9 @@ async function fetchPopularityRows(filters) {
 
 async function fetchTopPopularityBorrower(filters) {
     const borrowRangeParams = getDateRangeParams(filters);
-    const typeClause = filters.types.length
+    const typeClause = filters.noTypes
+        ? '1 = 0'
+        : filters.types.length
         ? `i.Item_type IN (${filters.types.map(() => '?').join(', ')})`
         : '1 = 1';
 
